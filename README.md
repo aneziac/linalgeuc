@@ -1,3 +1,3 @@
-# linalg_cart
+# linalgeuc
 
-Linear algebra library and Cartesian graphing calculator
+Linear algebra library and graphing calculator in Euclidean space

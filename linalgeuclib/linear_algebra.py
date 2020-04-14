@@ -1,6 +1,5 @@
-from math import *
+import math
 
-# CLASS DEFINITIONS
 
 class Matrix:
     def __init__(self, height, width):  # rows, columns
@@ -17,7 +16,7 @@ class Matrix:
             try:
                 self.matrix[self.cursor // self.width][self.cursor % self.width] = item
                 self.cursor += 1
-            except:
+            except IndexError:
                 raise ValueError("Matrix full")
 
         if isinstance(item, list):
@@ -36,8 +35,11 @@ class Matrix:
             print(" ")
 
     def size(self):
-        return(self.height, self.width)
-    
+        return self.height, self.width
+
+    def num_items(self):
+        return self.height * self.width
+
     def get_item(self, row, col):
         return self.matrix[row - 1][col - 1]
 
@@ -65,11 +67,11 @@ class Matrix:
         if self.width != 1 and self.height != 1:
             raise ValueError("Must input vector")
         return True
-    
+
     def ensure_full(self):
         for x in range(self.height):
             for y in range(self.width):
-                if self.matrix[x][y] == None:
+                if self.matrix[x][y] is None:
                     raise ValueError("At least some elements of the matrix are empty")
         return True
 
@@ -131,7 +133,7 @@ class Matrix:
 
         sum = 0
         for y in range(self.width):
-            sum += self.matrix[0][y] * self.minor(0, y).det() * cos(y * pi)
+            sum += self.matrix[0][y] * self.minor(0, y).det() * math.cos(y * math.pi)
         return sum
 
     def scalar(self, scl):
@@ -149,7 +151,7 @@ class Matrix:
         t = self.transpose()
         for x in range(self.height):
             for y in range(self.width):
-                result.push(rdet * t.minor(x, y).det() * cos((x + y) * pi))
+                result.push(rdet * t.minor(x, y).det() * math.cos((x + y) * math.pi))
         return result
 
     def solve(self, vector):
@@ -199,25 +201,46 @@ class Matrix:
 
         return result
 
+    def is_skew_symmetric(self):
+        if self.transpose().matrix == self.scalar(-1).matrix:
+            return True
+        else:
+            return False
+
+
+class InputMatrix(Matrix):
+    def __init__(self, *array):
+        height = len(array)
+        width = len(array[0])
+        super().__init__(height, width)
+        for x in array:
+            self.push(x)
+
 
 class Vector(Matrix):
     def __init__(self, n, v_type=True):
         assert type(v_type) == bool
-        if v_type == True:
-            self.height = n
-            self.width = 1
+        if v_type:
+            height = n
+            width = 1
         else:
-            self.height = 1
-            self.width = n
+            height = 1
+            width = n
 
-        self.clear()
-        
+        super().__init__(height, width)
+
     def magnitude(self):
         sum = 0
         for x in range(self.height):
             for y in range(self.width):
                 sum += (self.matrix[x][y]) ** 2
-        return sqrt(sum)
+        return math.sqrt(sum)
+
+    def normalize(self):
+        norm_vec = Vector(self.height)
+        for x in range(self.height):
+            norm_vec.push(x / self.magnitude)    
+        return norm_vec
 
     def dot_product(self, other_vector):
         other_vector.ensure_vector()
@@ -226,21 +249,52 @@ class Vector(Matrix):
     def outer_product(self, other_vector):
         other_vector.ensure_vector()
         return self.multiply(other_vector.transpose())
-    
+
     def get_angle(self, other_vector, deg=False):
-        angle = acos(self.dot_product(other_vector) / (self.magnitude() * other_vector.magnitude()))
+        other_vector.ensure_vector()
+        angle = math.acos(self.dot_product(other_vector) / (self.magnitude() * other_vector.magnitude()))
         if deg:
-            return degrees(angle)
+            return math.degrees(angle)
         else:
             return angle
 
-    #def cross_product(self, other_vector):
+    def projection(self, other_vector):
+        other_vector.ensure_vector()
+        return other_vector.scalar((self.dot_product(other_vector) / (other_vector.magnitude() ** 2)))
+
+    def cross_product(self, other_vector):
+        other_vector.ensure_vector()
+        if self.num_items() == 3 and other_vector.num_items() == 3:
+            cross_product = Vector(3)
+            cross_product.push((self.matrix[1][0] * other_vector.matrix[2][0]) - (self.matrix[2][0] * other_vector.matrix[1][0]))
+            cross_product.push((self.matrix[2][0] * other_vector.matrix[0][0]) - (self.matrix[0][0] * other_vector.matrix[2][0]))
+            cross_product.push((self.matrix[0][0] * other_vector.matrix[1][0]) - (self.matrix[1][0] * other_vector.matrix[0][0]))
+            return cross_product
+        else:
+            raise ValueError("The cross product is only defined for 3D vectors")
 
     def diagonal(self):
         return Matrix.identity(self.height).hadamard_product(self.outer_product(Matrix.ones(self.height, 1)))
 
+    @staticmethod
+    def get_basis(dim, n):
+        result = Vector(dim)
+        for x in range(dim):
+            if x == n:
+                result.push(1)
+            else:
+                result.push(0)
+        return result
 
-class Markov_Chain():
+
+class InputVector(Vector):
+    def __init__(self, array, v_type=True):
+        height = len(array)
+        super().__init__(height, v_type)
+        self.push(array)
+
+
+class Iteration:
     def __init__(self, state, transition):
         state.ensure_vector()
         self.state = state
