@@ -43,6 +43,16 @@ class Matrix:
     def size(self):
         return self.height, self.width
 
+    def set_item(self, item, row, col=0):
+        if isinstance(self, Vector):
+            self.vector[row] = item
+        self.matrix[row][col] = item
+
+    def change_item(self, delta, row, col=0):
+        if isinstance(self, Vector):
+            self.vector[row] += delta
+        self.matrix[row][col] += delta
+
     def num_items(self):
         return self.height * self.width
 
@@ -62,7 +72,6 @@ class Matrix:
         return InputVector(self.get_row(y))
 
     def ensure_equal_heights(self, other_matrix, dim="heights"):
-        other_matrix.ensure_full()
         if self.height != other_matrix.height:
             raise ValueError("Corresponding matrix " + dim + " must be equal (" + str(self.height) + " =/= " + str(other_matrix.height) + ")")
         return True
@@ -249,7 +258,7 @@ class Matrix:
             for y in range(self.width):
                 for a in range(other_matrix.height):
                     for b in range(other_matrix.width):
-                        result.matrix[(x * self.height) + a][(y * self.width) + b] = (self.matrix[x][y] * other_matrix.matrix[a][b])
+                        result.set_item(self.matrix[x][y] * other_matrix.matrix[a][b], (x * self.height) + a, (y * self.width) + b)
 
         return result
 
@@ -289,17 +298,17 @@ class Matrix:
         for x in range(self.height):
             for y in range(self.width):
                 if other_matrix.width > x - row >= 0 and other_matrix.height > y - col >= 0:
-                    result.matrix[x][y] = other_matrix.matrix[x - row][y - col]
+                    result.set_item(other_matrix.matrix[x - row][y - col], x, y)
         return result
 
     def expand(self, n=3):
         if self.height != 2 or self.width != 2:
             raise ValueError("Matrix expansion is only defined for 2x2s")
         result = Matrix.identity(n)
-        result.matrix[0][0] = self.matrix[0][0]
-        result.matrix[0][-1] = self.matrix[0][1]
-        result.matrix[-1][0] = self.matrix[1][0]
-        result.matrix[-1][-1] = self.matrix[1][1]
+        result.set_item(self.matrix[0][0], 0, 0)
+        result.set_item(self.matrix[0][1], 0, -1)
+        result.set_item(self.matrix[1][0], -1, 0)
+        result.set_item(self.matrix[1][1], -1, -1)
         return result
 
     def is_greater_than(self, other_matrix):
@@ -425,6 +434,12 @@ class Vector(Matrix):
             raise ValueError("Must input 3D vectors")
 
         return x_rotation(y_rotation(z_rotation(self, rotation_vector.vector[2]), rotation_vector.vector[1]), rotation_vector.vector[0])
+
+    def copy(self, num):
+        result = Vector(self.height)
+        for _ in range(num):
+            result = result.horizontal_concatenate(self)
+        return result
 
 
 class InputVector(Vector):
