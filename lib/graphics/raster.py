@@ -165,7 +165,7 @@ class Camera(Entity):
         self.screen_dims = screen_dims
         self.screen = pg.display.set_mode(screen_dims)
         self.font = pg.font.Font(None, 15)
-        pg.display.set_caption("rastervfx v.0.0.3")
+        pg.display.set_caption("raster v.0.0.3")
         self.fov = math.radians(fov)
         self.plane_dist = ((screen_dims[0] / 2) / math.tan(fov / 2))
         self.label_vertices = False

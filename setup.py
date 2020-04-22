@@ -1,17 +1,13 @@
 from setuptools import setup, find_packages
 
 
-with open('README.md') as f:
-    readme = f.read()
-
 with open('LICENSE') as f:
     license = f.read()
 
 setup(
     name="linalgeuc",
-    version="0.1.0",
-    description="Linear algebra library and graphing calculator",
-    long_description=readme,
+    version="0.1.1",
+    description="Geometry editor and graphing calculator in Euclidean space.",
     author="robertgamer4",
     url="https://github.com/robertgamer4/linalgeuc",
     license=license,
