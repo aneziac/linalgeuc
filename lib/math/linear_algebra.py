@@ -219,6 +219,8 @@ class Matrix:
 
         return product
 
+    __mul__ = multiply
+
     def divide(self, other_matrix):
         return self.multiply(other_matrix.inv())
 
@@ -367,6 +369,8 @@ class Vector(Matrix):
         other_vector.ensure_vector()
         return other_vector.multiply(self.transpose()).vector[0]
 
+    dot = dot_product
+
     def outer_product(self, other_vector):
         other_vector.ensure_vector()
         return self.multiply(other_vector.transpose())
@@ -381,10 +385,10 @@ class Vector(Matrix):
 
     def scalar_projection(self, other_vector):
         other_vector.ensure_vector()
-        return self.dot_product(other_vector) / (other_vector.magnitude() ** 2)
+        return self.dot_product(other_vector) / (other_vector.magnitude())
 
     def vector_projection(self, other_vector):
-        return other_vector.scalar(self.scalar_projection(other_vector))
+        return other_vector.normalize().scalar(self.scalar_projection(other_vector))
 
     def cross_product(self, other_vector):
         other_vector.ensure_vector()
@@ -435,11 +439,14 @@ class Vector(Matrix):
 
         return x_rotation(y_rotation(z_rotation(self, rotation_vector.vector[2]), rotation_vector.vector[1]), rotation_vector.vector[0])
 
-    def copy(self, num):
+    def stack(self, num, horizontal=True):
         result = Vector(self.height)
         for _ in range(num):
             result = result.horizontal_concatenate(self)
-        return result
+        if horizontal:
+            return result
+        else:
+            return result.transpose()
 
 
 class InputVector(Vector):
