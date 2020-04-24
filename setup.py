@@ -6,7 +6,7 @@ with open('LICENSE') as f:
 
 setup(
     name="linalgeuc",
-    version="0.1.1",
+    version="0.1.2",
     description="Geometry editor and graphing calculator in Euclidean space.",
     author="robertgamer4",
     url="https://github.com/robertgamer4/linalgeuc",

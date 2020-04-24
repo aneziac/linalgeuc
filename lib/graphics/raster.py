@@ -230,7 +230,7 @@ def main():
 
     y = Tetrahedron([0, 0, 0], 1, colors.BLACK)
     y.show = False
-    x = Cube([[-1, -1, -1], [1, 1, 1]], colors.BLACK, [0, 0, 0], [1, 1, 1])
+    x = Cube([[-1, -1, -1], [1, 1, 1]], colors.BLACK)
     x.selected = True
 
     while True:

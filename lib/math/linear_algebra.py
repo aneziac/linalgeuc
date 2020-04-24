@@ -1,4 +1,6 @@
 import math
+import random
+import numpy as np
 
 
 class Matrix:
@@ -153,6 +155,14 @@ class Matrix:
     def subtract(self, other_matrix):
         return self.add(other_matrix.scalar(-1))
 
+    def submatrix(self, start_row, start_col, end_row, end_col):
+        result = Matrix(end_row - start_row, end_col - start_col)
+        for x in self.height:
+            for y in self.width:
+                if end_row > x >= start_row and end_col > y >= start_col:
+                    result.push(self.matrix[x][y])
+        return result
+
     def minor(self, row, col):
         if self.height != self.width or self.height <= 2:
             raise ValueError("Invalid minor")
@@ -193,9 +203,19 @@ class Matrix:
                 result.push(rdet * t.minor(x, y).det() * math.cos((x + y) * math.pi))
         return result
 
-    def solve(self, vector):
+    def solve_system(self, vector):
         vector.ensure_vector()
         return self.inv().multiply(vector)
+
+    def trace(self):
+        self.ensure_square()
+        total = 0
+
+        for x in range(self.height):
+            for y in range(self.width):
+                if x == y:
+                    total += self.matrix[x][y]
+        return total
 
     def multiply(self, other_matrix):
         self.ensure_full()
@@ -235,6 +255,12 @@ class Matrix:
     def matrix_quotient(self, other_matrix):
         return self.hadamard_product(other_matrix.element_raise_to(-1))
 
+    def element_add(self, n):
+        return self.add(Matrix.ones(self.height, self.width).scalar(n))
+
+    def element_multiply(self, n):
+        return self.hadamard_product(Matrix.ones(self.height, self.width).scalar(n))
+
     def element_raise_to(self, n):
         result = create_array(self.height, self.width)
         for x in range(self.height):
@@ -266,6 +292,18 @@ class Matrix:
 
     def is_skew_symmetric(self):
         if self.transpose().matrix == self.scalar(-1).matrix:
+            return True
+        else:
+            return False
+
+    def is_square(self):
+        if self.width == self.height:
+            return True
+        else:
+            return False
+
+    def is_vector(self):
+        if self.width == 1:
             return True
         else:
             return False
@@ -330,6 +368,41 @@ class Matrix:
                     return False
         return True
 
+    def sum_values(self):
+        total = 0
+        for x in range(self.height):
+            for y in range(self.height):
+                total += self.matrix[x][y]
+        return total
+
+    def random_matrix(self, height, width, value_range=[-20, 20]):
+        result = Matrix(height, width)
+        for x in range(height):
+            for y in range(width):
+                result.set_item(random.randint(*value_range), x, y)
+        return result
+
+    def eigenvalues(self):
+        self.ensure_square()
+        if self.height == 2:
+            return np.roots([1, -self.trace(), self.det()])
+        elif self.height == 3:
+            return np.roots([1, -self.trace(), self.raise_to(2).trace() - (self.trace() ** 2), -self.det()])
+        else:
+            raise ValueError("Eigenvalues can currently only be found for 2x2s and 3x3s")
+
+    def eigenvectors(self):
+        eigenvalues = self.eigenvalues()
+        result = Matrix(len(eigenvalues), len(eigenvalues))
+
+        for i, eig in enumerate(eigenvalues):
+            x = self.subtract(Matrix.identity.scalar(eig))
+            if len(eigenvalues) == 2:
+                eigenvector = x.get_column(0)
+            elif len(eigenvalues) == 3:
+                eigenvector = x.get_col_as_vec(0).cross(x.get_col_as_vec(1))
+            result.overwrite(eigenvector, 0, i)
+
 
 class InputMatrix(Matrix):
     def __init__(self, *array):
@@ -353,11 +426,11 @@ class Vector(Matrix):
     def get_vector_item(self, n):
         return self.vector(n)
 
-    def magnitude(self):
-        sum = 0
-        for x in range(self.height):
-            sum += (self.vector[x]) ** 2
-        return math.sqrt(sum)
+    def magnitude(self, norm=2):
+        if norm == "inf":
+            return max([abs(x) for x in self.vector])
+        else:
+            return self.element_raise_to(norm).sum_values() ** (1 / norm)
 
     def normalize(self):
         norm_vec = Vector(self.height)
@@ -405,6 +478,8 @@ class Vector(Matrix):
         else:
             raise ValueError("The cross product is only defined for 3D vectors")
 
+    cross = cross_product
+
     def diagonal(self):
         return Matrix.identity(self.height).hadamard_product(self.outer_product(Matrix.ones(self.height, 1)))
 
@@ -447,6 +522,14 @@ class Vector(Matrix):
             return result
         else:
             return result.transpose()
+
+    def distance(self, other_vector, norm=2):
+        other_vector.ensure_vector()
+        return other_vector.subtract(self).magnitude(norm)
+
+    def midpoint(self, other_vector):
+        other_vector.ensure_vector()
+        return self.add(other_vector.subtract(self).element_multiply(0.5))
 
 
 class InputVector(Vector):

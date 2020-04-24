@@ -11,9 +11,11 @@ Note: currently very early in development.
 
 # Usage
 
+First, ``cd`` into the repository directory.
+
 ``$ make install`` will install linalgeuc.
 ``$ make run-raster`` will run the rasterization engine.
-``$ make clean`` will deactivate and remove the virtual environment.
+``$ make clean`` will remove the virtual environment and other unnecessary files.
 
 # Credits
 
