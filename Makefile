@@ -11,4 +11,4 @@ clean:
 	find . -name '*.pyc' -delete
 
 run-raster:
-	python lib/graphics/raster.py
+	python linalgeuc/graphics/raster.py

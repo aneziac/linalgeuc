@@ -1,23 +1,24 @@
 import math
 import pygame as pg
-import lib.graphics.colors as colors
-import lib.math.linear_algebra as lalib
+import linalgeuc.graphics.colors as colors
+import linalgeuc.math.linear_algebra as lalib
 
 
 class Entity:
     instances = []
 
-    def __init__(self, pos, rot=[0, 0, 0], scl=[1, 1, 1]):
+    def __init__(self, pos, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
         Entity.instances.append(self)
         self.ipos = lalib.InputVector(pos)
         self.irot = lalib.InputVector(rot)
         self.iscl = lalib.InputVector(scl).diagonal()
+        self.key = key
         self.reset()
         self.selected = False
         self.show = True
 
     def translate_point(self, point):
-        return point.add(self.pos.subtract(self.ipos))
+        return point + (self.pos - self.ipos)
 
     def rotate_point(self, point, reverse=False):
         return point.rotate_3d(self.rot)
@@ -26,41 +27,46 @@ class Entity:
         if self.scale_factor < 0:
             self.scale_factor = 0
         self.scl = self.iscl.scalar(self.scale_factor)
-        return self.scl.multiply(point)
+        return self.scl * point
 
     def transform_point(self, point):
         return self.translate_point(self.scale_point(self.rotate_point(point)))
 
     def controls(self, rot_speed, move_speed, scl_speed):
         keys = pg.key.get_pressed()
+        if self.selected:
+            if keys[pg.K_q]:
+                self.rot.change_item(rot_speed, 2)
+            if keys[pg.K_e]:
+                self.rot.change_item(-rot_speed, 2)
+            if keys[pg.K_a]:
+                self.rot.change_item(rot_speed, 1)
+            if keys[pg.K_d]:
+                self.rot.change_item(-rot_speed, 1)
+            if keys[pg.K_s]:
+                self.rot.change_item(-rot_speed, 0)
+            if keys[pg.K_w]:
+                self.rot.change_item(rot_speed, 0)
+            if keys[pg.K_LEFT]:
+                self.pos.change_item(-move_speed, 0)
+            if keys[pg.K_RIGHT]:
+                self.pos.change_item(move_speed, 0)
+            if keys[pg.K_UP]:
+                self.pos.change_item(move_speed, 2)
+            if keys[pg.K_DOWN]:
+                self.pos.change_item(-move_speed, 2)
+            if keys[pg.K_o]:
+                self.scale_factor -= scl_speed
+            if keys[pg.K_p]:
+                self.scale_factor += scl_speed
 
-        if keys[pg.K_q]:
-            self.rot.change_item(rot_speed, 2)
-        if keys[pg.K_e]:
-            self.rot.change_item(-rot_speed, 2)
-        if keys[pg.K_a]:
-            self.rot.change_item(rot_speed, 1)
-        if keys[pg.K_d]:
-            self.rot.change_item(-rot_speed, 1)
-        if keys[pg.K_s]:
-            self.rot.change_item(-rot_speed, 0)
-        if keys[pg.K_w]:
-            self.rot.change_item(rot_speed, 0)
-        if keys[pg.K_LEFT]:
-            self.pos.change_item(-move_speed, 0)
-        if keys[pg.K_RIGHT]:
-            self.pos.change_item(move_speed, 0)
-        if keys[pg.K_UP]:
-            self.pos.change_item(move_speed, 2)
-        if keys[pg.K_DOWN]:
-            self.pos.change_item(-move_speed, 2)
-        if keys[pg.K_o]:
-            self.scale_factor -= scl_speed
-        if keys[pg.K_p]:
-            self.scale_factor += scl_speed
+            if keys[pg.K_r]:
+                self.reset()
 
-        if keys[pg.K_r]:
-            self.reset()
+        if keys[eval("pg.K_" + self.key)]:
+            Entity.deselect_all()
+            print("hello", self)
+            self.selected = True
         if keys[pg.K_ESCAPE] or pg.QUIT in [event.type for event in pg.event.get()]:
             import sys
             pg.quit()
@@ -71,20 +77,20 @@ class Entity:
         self.rot = lalib.InputVector(self.irot.vector)
         self.scale_factor = 1
 
-    @staticmethod
-    def select_all():
-        for entity in Entity.instances:
+    @classmethod
+    def select_all(cls):
+        for entity in cls.instances:
             entity.selected = True
 
-    @staticmethod
-    def deselect_all():
-        for entity in Entity.instances:
+    @classmethod
+    def deselect_all(cls):
+        for entity in cls.instances:
             entity.selected = False
 
 
 class Mesh(Entity):
-    def __init__(self, pos, vertices, edges, color, rot=[0, 0, 0], scl=[1, 1, 1]):
-        super().__init__(pos, rot, scl)
+    def __init__(self, pos, vertices, edges, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
+        super().__init__(pos, key, rot, scl)
         self.vertices = vertices
         self.edges = edges
         self.color = color
@@ -98,11 +104,11 @@ class Mesh(Entity):
 
 
 class Cube(Mesh):
-    def __init__(self, boundaries, color, rot=[0, 0, 0], scl=[1, 1, 1]):
+    def __init__(self, boundaries, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
         pos = self.get_pos(boundaries)
         vertices = self.get_vertices(boundaries)
         edges = self.get_edges(vertices)
-        super().__init__(pos, vertices, edges, color, rot, scl)
+        super().__init__(pos, vertices, edges, color, key, rot, scl)
 
     def get_pos(self, boundaries):
         pos = []
@@ -137,20 +143,22 @@ class Cube(Mesh):
 
 
 class Tetrahedron(Mesh):
-    def __init__(self, center, radius, color, rot=[0, 0, 0], scl=[1, 1, 1]):
-        vertices = self.get_vertices(lalib.InputVector(center), radius)
-        edges = self.get_edges(vertices)
-        super().__init__(center, vertices, edges, color, rot, scl)
+    def __init__(self, center, radius, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
+        vertices = Tetrahedron.get_vertices(lalib.InputVector(center), radius)
+        edges = Tetrahedron.get_edges(vertices)
+        super().__init__(center, vertices, edges, color, key, rot, scl)
 
-    def get_vertices(self, center, radius):
+    @staticmethod
+    def get_vertices(center, radius):
         theta = math.pi / 6
         x = radius * math.cos(theta) * math.cos(theta)
         y = -radius * math.sin(theta) * math.cos(theta)
         z = -radius * math.sin(theta)
         vertices = lalib.InputMatrix([0, 0, radius], [x, y, z], [0, radius * math.cos(theta), z], [-x, y, z])
-        return center.stack(4, False).add(vertices)
+        return center.stack(4, False) + vertices
 
-    def get_edges(self, vertices):
+    @staticmethod
+    def get_edges(vertices):
         edges = lalib.Matrix(1, 2)
         for x in range(vertices.height):
             for y in range(vertices.height):
@@ -160,8 +168,8 @@ class Tetrahedron(Mesh):
 
 
 class Camera(Entity):
-    def __init__(self, screen_dims, fov, pos, rot=[0, 0, 0]):
-        super().__init__(pos, rot)
+    def __init__(self, screen_dims, fov, pos, key=None, rot=[0, 0, 0]):
+        super().__init__(pos, key, rot)
         self.screen_dims = screen_dims
         self.screen = pg.display.set_mode(screen_dims)
         self.font = pg.font.Font(None, 15)
@@ -173,12 +181,12 @@ class Camera(Entity):
 
     def q1_transform(self, x, y):
         if x is None or y is None:
-            return [None, None]
+            return [None] * 2
         else:
             return [x, self.screen_dims[1] - y]
 
     def project(self, coord):
-        dcoord = self.rotate_point(self.pos.subtract(coord))
+        dcoord = self.rotate_point(self.pos - coord)
 
         def projection(dcoord, dim, screen_dim):
             if dcoord.vector[1] > 0:
@@ -190,8 +198,7 @@ class Camera(Entity):
 
     def render_scene(self):
         for entity in Entity.instances:
-            if entity.selected:
-                entity.controls(2, 0.01, 0.01)
+            entity.controls(2, 0.01, 0.01)
 
             if isinstance(entity, Mesh) and entity.show:
                 projected_coords = lalib.Matrix(1, 2)
@@ -226,26 +233,15 @@ def main():
     pg.init()
     pg.font.init()
 
-    camera = Camera([900, 600], 55, [0, 3, 0])
+    camera = Camera([900, 600], 55, [0, 3, 0], '1')
 
-    y = Tetrahedron([0, 0, 0], 1, colors.BLACK)
+    y = Tetrahedron([0, 0, 0], 1, colors.BLACK, '3')
     y.show = False
-    x = Cube([[-1, -1, -1], [1, 1, 1]], colors.BLACK)
+    x = Cube([[-1, -1, -1], [1, 1, 1]], colors.BLACK, '2')
     x.selected = True
 
     while True:
         camera.loop()
-
-        keys = pg.key.get_pressed()
-        if keys[pg.K_1]:
-            Entity.deselect_all()
-            camera.selected = True
-        if keys[pg.K_2]:
-            Entity.deselect_all()
-            x.selected = True
-        if keys[pg.K_3]:
-            Entity.deselect_all()
-            y.selected = True
 
 
 if __name__ == '__main__':

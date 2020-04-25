@@ -4,9 +4,11 @@ import numpy as np
 
 
 class Matrix:
-    def __init__(self, height, width):  # rows, columns
+    def __init__(self, height, width):
         self.height = height
+        self.rows = height
         self.width = width
+        self.columns = width
         self.clear()
 
     def clear(self):
@@ -113,9 +115,9 @@ class Matrix:
                     return True
         return False
 
-    @staticmethod
-    def identity(n):
-        result = Matrix(n, n)
+    @classmethod
+    def identity(cls, n):
+        result = cls(n, n)
         for x in range(n):
             for y in range(n):
                 if x == y:
@@ -152,8 +154,12 @@ class Matrix:
             result.push([(self.matrix[x][y] + other_matrix.matrix[x][y]) for y in range(self.width)])
         return result
 
+    __add__ = add
+
     def subtract(self, other_matrix):
-        return self.add(other_matrix.scalar(-1))
+        return self + other_matrix.scalar(-1)
+
+    __sub__ = subtract
 
     def submatrix(self, start_row, start_col, end_row, end_col):
         result = Matrix(end_row - start_row, end_col - start_col)
@@ -172,9 +178,10 @@ class Matrix:
             for y in range(self.width):
                 if x != row and y != col:
                     result.push(self.matrix[x][y])
-        return result
+        return result.det
 
-    def det(self):
+    @property
+    def determinant(self):
         self.ensure_square()
 
         if self.height == 2:
@@ -182,8 +189,10 @@ class Matrix:
 
         sum = 0
         for y in range(self.width):
-            sum += self.matrix[0][y] * self.minor(0, y).det() * math.cos(y * math.pi)
+            sum += self.matrix[0][y] * self.minor(0, y).det * math.cos(y * math.pi)
         return sum
+
+    det = determinant
 
     def scalar(self, scl):
         result = create_array(self.height, self.width)
@@ -192,21 +201,24 @@ class Matrix:
             result.push([(self.matrix[x][y] * scl) for y in range(self.width)])
         return result
 
-    def inv(self):
+    def inverse(self):
         self.ensure_square()
 
         result = Matrix(self.height, self.width)
-        rdet = 1 / self.det()
+        rdet = 1 / self.det
         t = self.transpose()
         for x in range(self.height):
             for y in range(self.width):
-                result.push(rdet * t.minor(x, y).det() * math.cos((x + y) * math.pi))
+                result.push(rdet * t.minor(x, y) * math.cos((x + y) * math.pi))
         return result
+
+    inv = inverse
 
     def solve_system(self, vector):
         vector.ensure_vector()
-        return self.inv().multiply(vector)
+        return self.inv() * vector
 
+    @property
     def trace(self):
         self.ensure_square()
         total = 0
@@ -244,6 +256,8 @@ class Matrix:
     def divide(self, other_matrix):
         return self.multiply(other_matrix.inv())
 
+    __div__ = divide
+
     def hadamard_product(self, other_matrix):
         self.ensure_equal_dims(other_matrix)
 
@@ -256,10 +270,7 @@ class Matrix:
         return self.hadamard_product(other_matrix.element_raise_to(-1))
 
     def element_add(self, n):
-        return self.add(Matrix.ones(self.height, self.width).scalar(n))
-
-    def element_multiply(self, n):
-        return self.hadamard_product(Matrix.ones(self.height, self.width).scalar(n))
+        return self + Matrix.ones(self.height, self.width).scalar(n)
 
     def element_raise_to(self, n):
         result = create_array(self.height, self.width)
@@ -275,7 +286,7 @@ class Matrix:
         self.ensure_square()
         result = Matrix(self.height, self.width)
         for x in range(n):
-            result.multiply(self)
+            result *= self
         return result
 
     def kronecker_product(self, other_matrix):
@@ -290,18 +301,21 @@ class Matrix:
 
         return result
 
+    @property
     def is_skew_symmetric(self):
         if self.transpose().matrix == self.scalar(-1).matrix:
             return True
         else:
             return False
 
+    @property
     def is_square(self):
         if self.width == self.height:
             return True
         else:
             return False
 
+    @property
     def is_vector(self):
         if self.width == 1:
             return True
@@ -368,6 +382,7 @@ class Matrix:
                     return False
         return True
 
+    @property
     def sum_values(self):
         total = 0
         for x in range(self.height):
@@ -382,21 +397,25 @@ class Matrix:
                 result.set_item(random.randint(*value_range), x, y)
         return result
 
+    @property
     def eigenvalues(self):
         self.ensure_square()
         if self.height == 2:
-            return np.roots([1, -self.trace(), self.det()])
+            return np.roots([1, -self.trace, self.det])
         elif self.height == 3:
-            return np.roots([1, -self.trace(), self.raise_to(2).trace() - (self.trace() ** 2), -self.det()])
+            return np.roots([1, -self.trace, self.raise_to(2).trace - (self.trace() ** 2), -self.det])
         else:
             raise ValueError("Eigenvalues can currently only be found for 2x2s and 3x3s")
 
+    eig = eigenvalues
+
+    @property
     def eigenvectors(self):
-        eigenvalues = self.eigenvalues()
+        eigenvalues = self.eig
         result = Matrix(len(eigenvalues), len(eigenvalues))
 
         for i, eig in enumerate(eigenvalues):
-            x = self.subtract(Matrix.identity.scalar(eig))
+            x = self - Matrix.identity.scalar(eig)
             if len(eigenvalues) == 2:
                 eigenvector = x.get_column(0)
             elif len(eigenvalues) == 3:
@@ -426,11 +445,12 @@ class Vector(Matrix):
     def get_vector_item(self, n):
         return self.vector(n)
 
+    @property
     def magnitude(self, norm=2):
         if norm == "inf":
             return max([abs(x) for x in self.vector])
         else:
-            return self.element_raise_to(norm).sum_values() ** (1 / norm)
+            return self.element_raise_to(norm).sum_values ** (1 / norm)
 
     def normalize(self):
         norm_vec = Vector(self.height)
@@ -440,13 +460,13 @@ class Vector(Matrix):
 
     def dot_product(self, other_vector):
         other_vector.ensure_vector()
-        return other_vector.multiply(self.transpose()).vector[0]
+        return (other_vector * self.transpose()).vector[0]
 
     dot = dot_product
 
     def outer_product(self, other_vector):
         other_vector.ensure_vector()
-        return self.multiply(other_vector.transpose())
+        return self * other_vector.transpose()
 
     def get_angle(self, other_vector, deg=False):
         other_vector.ensure_vector()
@@ -496,17 +516,17 @@ class Vector(Matrix):
     def rotate_2d(self, theta, degrees=True):
         if self.height != 2:
             raise ValueError("Must input a 2D vector")
-        return Matrix.rotation(theta, degrees).multiply(self)
+        return Matrix.rotation(theta, degrees) * self
 
     def rotate_3d(self, rotation_vector, degrees=True):
         def x_rotation(vector, theta):
-            return Matrix.identity(3).overwrite(Matrix.rotation(theta, degrees), 1, 1).multiply(vector)
+            return Matrix.identity(3).overwrite(Matrix.rotation(theta, degrees), 1, 1) * vector
 
         def y_rotation(vector, theta):
-            return Matrix.rotation(theta, degrees).expand(3).multiply(vector)
+            return Matrix.rotation(theta, degrees).expand(3) * vector
 
         def z_rotation(vector, theta):
-            return Matrix.identity(3).overwrite(Matrix.rotation(theta, degrees), 0, 0).multiply(vector)
+            return Matrix.identity(3).overwrite(Matrix.rotation(theta, degrees), 0, 0) * vector
 
         rotation_vector.ensure_vector()
         if self.height != 3 or rotation_vector.height != 3:
@@ -525,11 +545,11 @@ class Vector(Matrix):
 
     def distance(self, other_vector, norm=2):
         other_vector.ensure_vector()
-        return other_vector.subtract(self).magnitude(norm)
+        return other_vector - self.magnitude(norm)
 
     def midpoint(self, other_vector):
         other_vector.ensure_vector()
-        return self.add(other_vector.subtract(self).element_multiply(0.5))
+        return self + (other_vector - self).scalar(0.5)
 
 
 class InputVector(Vector):
@@ -546,14 +566,14 @@ class Iteration:
 
     def iterate(self, amount):
         for x in range(amount):
-            self.state = self.transition.multiply(self.state)
+            self.state = self.transition * self.state
         return self.state.matrix
 
     def iterate_until(self, threshold_vector):
         iterations = 0
 
         while self.state.is_greater_than(threshold_vector):
-            self.state = self.transition.multiply(self.state)
+            self.state = self.transition * self.state
             iterations += 1
 
         return iterations
