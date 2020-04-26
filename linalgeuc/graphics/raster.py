@@ -65,7 +65,6 @@ class Entity:
 
         if keys[eval("pg.K_" + self.key)]:
             Entity.deselect_all()
-            print("hello", self)
             self.selected = True
         if keys[pg.K_ESCAPE] or pg.QUIT in [event.type for event in pg.event.get()]:
             import sys
@@ -98,73 +97,80 @@ class Mesh(Entity):
     def transform(self):
         tvertices = lalib.Matrix(1, 3)
         for x in range(self.vertices.height):
-            tvertex = super().transform_point(self.vertices.get_row_as_vec(x))
+            tvertex = super().transform_point(self.vertices.get_row(x))
             tvertices = tvertices.vertical_concatenate(tvertex.transpose())
         return tvertices
 
 
-class Cube(Mesh):
-    def __init__(self, boundaries, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
-        pos = self.get_pos(boundaries)
-        vertices = self.get_vertices(boundaries)
+class Plane(Mesh):
+    pass
+
+
+class Circle(Mesh):
+    pass
+
+
+class Polyhedron(Mesh):
+    # F + V - E = 2
+    pass
+
+
+class PlatonicSolid(Polyhedron):
+    def __init__(self, center, radius, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
+        self.golen_ratio = (1 + (5 ** 0.5)) / 2
+        self.radius = radius
+        vertices = self.get_vertices()
+        vertices += lalib.InputVector(center).stack(vertices.height, False)
         edges = self.get_edges(vertices)
-        super().__init__(pos, vertices, edges, color, key, rot, scl)
+        super().__init__(center, vertices, edges, color, key, rot, scl)
 
-    def get_pos(self, boundaries):
-        pos = []
-        for x in range(3):
-            pos.append((boundaries[0][x] + boundaries[1][x]) / 2)
-        return pos
-
-    def get_vertices(self, boundaries):
-        def recurse(p, n, c, boundaries):
-            for x in c:
+    def permute(self, values):
+        def recurse(n, cur, prev=[]):
+            for x in cur:
                 if n == 1:
-                    nonlocal vertices
-                    vertices = vertices.vertical_concatenate(lalib.InputVector(p + [x]).transpose())
+                    output.append(prev + [x])
                 else:
-                    recurse(p + [x], n - 1, [boundaries[0][-n], boundaries[1][-n]], boundaries)
+                    recurse(n - 1, [values[-n]] + [(values[-n] * -1)], prev + [x])
 
-        vertices = lalib.Matrix(1, 3)
-        recurse([], len(boundaries[0]), [boundaries[0][0], boundaries[1][0]], boundaries)
-        return vertices
+        output = []
+        recurse(len(values), [values[0]] + [(values[0] * -1)])
+        return lalib.InputMatrix(output)
 
     def get_edges(self, vertices):
         edges = lalib.Matrix(1, 2)
         for x in range(vertices.height):
             for y in range(vertices.height):
-                xrow = vertices.matrix[x]
-                yrow = vertices.matrix[y]
-                if x != y and y > x and ((xrow[0] == yrow[0] and xrow[1] == yrow[1]) or
-                                         (xrow[1] == yrow[1] and xrow[2] == yrow[2]) or
-                                         (xrow[0] == yrow[0] and xrow[2] == yrow[2])):
-                    edges = edges.vertical_concatenate(lalib.InputVector([x, y]).transpose())
+                if x != y and y > x and vertices.get_row(x).distance(vertices.get_row(y)) == self.radius * 2:
+                    edges = edges.vertical_concatenate([x, y])
         return edges
 
 
-class Tetrahedron(Mesh):
-    def __init__(self, center, radius, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
-        vertices = Tetrahedron.get_vertices(lalib.InputVector(center), radius)
-        edges = Tetrahedron.get_edges(vertices)
-        super().__init__(center, vertices, edges, color, key, rot, scl)
+class Tetrahedron(PlatonicSolid):
+    def get_vertices(self):
+        vertices = super().permute([self.radius] * 2)
+        return vertices.horizontal_concatenate(vertices.get_col(0).hadamard_product(vertices.get_col(1)))
 
-    @staticmethod
-    def get_vertices(center, radius):
-        theta = math.pi / 6
-        x = radius * math.cos(theta) * math.cos(theta)
-        y = -radius * math.sin(theta) * math.cos(theta)
-        z = -radius * math.sin(theta)
-        vertices = lalib.InputMatrix([0, 0, radius], [x, y, z], [0, radius * math.cos(theta), z], [-x, y, z])
-        return center.stack(4, False) + vertices
 
-    @staticmethod
-    def get_edges(vertices):
-        edges = lalib.Matrix(1, 2)
-        for x in range(vertices.height):
-            for y in range(vertices.height):
-                if x != y and y > x:
-                    edges = edges.vertical_concatenate(lalib.InputVector([x, y]).transpose())
-        return edges
+class Cube(PlatonicSolid):
+    def get_vertices(self):
+        return super().permute([self.radius] * 3)
+
+
+class Octohedron(PlatonicSolid):
+    def get_vertices(self):
+        return super().permute([0, 0, self.radius])
+
+
+class Dodecahedron(PlatonicSolid):
+    def get_vertices(self):
+        outer = super().permute([0, self.radius, self.radius / self.golden_ratio])
+        inner = super().permute([self.radius] * 3)
+        return outer.vertical_concatenate(inner)
+
+
+class Icosahedron(PlatonicSolid):
+    def get_vertices(self):
+        return super().permute([0, self.radius, self.golden_ratio * self.radius])
 
 
 class Camera(Entity):
@@ -237,7 +243,7 @@ def main():
 
     y = Tetrahedron([0, 0, 0], 1, colors.BLACK, '3')
     y.show = False
-    x = Cube([[-1, -1, -1], [1, 1, 1]], colors.BLACK, '2')
+    x = Cube([0, 0, 0], 1, colors.BLACK, '2')
     x.selected = True
 
     while True:
