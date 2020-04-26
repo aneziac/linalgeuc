@@ -1,5 +1,6 @@
 import math
 import pygame as pg
+from itertools import permutations
 import linalgeuc.graphics.colors as colors
 import linalgeuc.math.linear_algebra as lalib
 
@@ -117,60 +118,67 @@ class Polyhedron(Mesh):
 
 class PlatonicSolid(Polyhedron):
     def __init__(self, center, radius, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
-        self.golen_ratio = (1 + (5 ** 0.5)) / 2
+        self.golden_ratio = (1 + (5 ** 0.5)) / 2
         self.radius = radius
         vertices = self.get_vertices()
         vertices += lalib.InputVector(center).stack(vertices.height, False)
         edges = self.get_edges(vertices)
         super().__init__(center, vertices, edges, color, key, rot, scl)
 
-    def permute(self, values):
-        def recurse(n, cur, prev=[]):
+    def signs(self, values, permute=False):
+        def recurse(n, val, cur, prev=[]):
             for x in cur:
-                if n == 1:
+                if n == 1 and [prev + [x]] not in output:
                     output.append(prev + [x])
                 else:
-                    recurse(n - 1, [values[-n]] + [(values[-n] * -1)], prev + [x])
+                    recurse(n - 1, val, [val[-n]] + [(val[-n] * -1)], prev + [x])
 
         output = []
-        recurse(len(values), [values[0]] + [(values[0] * -1)])
+        if permute:
+            output = list(set(list(permutations(values)) + list(permutations([-x for x in values]))))
+        else:
+            recurse(len(values), values, [values[0]] + [(values[0] * -1)])
         return lalib.InputMatrix(output)
 
     def get_edges(self, vertices):
         edges = lalib.Matrix(1, 2)
+        v_dist = vertices.get_row(0).magnitude() * 5
+        for x in range(vertices.height - 1):
+            v_dist = min(v_dist, vertices.get_row(0).distance(vertices.get_row(x + 1)))
+
         for x in range(vertices.height):
             for y in range(vertices.height):
-                if x != y and y > x and vertices.get_row(x).distance(vertices.get_row(y)) == self.radius * 2:
+                if x != y and y > x and vertices.get_row(x).distance(vertices.get_row(y)) == v_dist:
                     edges = edges.vertical_concatenate([x, y])
         return edges
 
 
 class Tetrahedron(PlatonicSolid):
     def get_vertices(self):
-        vertices = super().permute([self.radius] * 2)
+        vertices = super().signs([self.radius] * 2)
         return vertices.horizontal_concatenate(vertices.get_col(0).hadamard_product(vertices.get_col(1)))
 
 
 class Cube(PlatonicSolid):
     def get_vertices(self):
-        return super().permute([self.radius] * 3)
+        return super().signs([self.radius] * 3)
 
 
 class Octohedron(PlatonicSolid):
     def get_vertices(self):
-        return super().permute([0, 0, self.radius])
+        return super().signs([0, 0, self.radius], True)
 
 
 class Dodecahedron(PlatonicSolid):
     def get_vertices(self):
-        outer = super().permute([0, self.radius, self.radius / self.golden_ratio])
-        inner = super().permute([self.radius] * 3)
+        outer = super().signs([0, self.radius, self.radius / self.golden_ratio], True)
+        inner = super().signs([self.radius] * 3)
         return outer.vertical_concatenate(inner)
 
 
 class Icosahedron(PlatonicSolid):
     def get_vertices(self):
-        return super().permute([0, self.radius, self.golden_ratio * self.radius])
+        return super().signs([0, self.radius, self.golden_ratio * self.radius], True)
 
 
 class Camera(Entity):
@@ -241,10 +249,10 @@ def main():
 
     camera = Camera([900, 600], 55, [0, 3, 0], '1')
 
-    y = Tetrahedron([0, 0, 0], 1, colors.BLACK, '3')
-    y.show = False
-    x = Cube([0, 0, 0], 1, colors.BLACK, '2')
-    x.selected = True
+    y = Octohedron([0, 0, 0], 1, colors.BLACK, '3')
+    y.show = True
+    #x = Cube([0, 0, 0], 1, colors.BLACK, '2')
+    y.selected = True
 
     while True:
         camera.loop()

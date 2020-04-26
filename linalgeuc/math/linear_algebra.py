@@ -433,8 +433,9 @@ class Matrix:
 
 class InputMatrix(Matrix):
     def __init__(self, *array):
-        if len(array) == 1:
-            array = array[0]
+        if len(array) > 1:
+            array = [x for x in array]
+        array = array[0]
         height = len(array)
         width = len(array[0])
         for x in range(height):
@@ -443,7 +444,8 @@ class InputMatrix(Matrix):
 
         super().__init__(height, width)
         for x in array:
-            self.push(x)
+            for y in x:
+                self.push(y)
 
 
 class Vector(Matrix):
@@ -594,6 +596,7 @@ def create_array(height, width):
         return Vector(height)
     elif width >= 1:
         return Matrix(height, width)
+
 
 def input_array(*array):
     if type(array[0]) == list:

@@ -10,5 +10,8 @@ clean:
 	rm -rf linalgeuc.egg-info
 	find . -name '*.pyc' -delete
 
+test:
+	python tests/test_linalg.py
+
 run-raster:
 	python linalgeuc/graphics/raster.py
