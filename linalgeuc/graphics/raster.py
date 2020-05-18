@@ -7,12 +7,13 @@ import linalgeuc.math.linear_algebra as lalib
 
 class Entity:
     instances = []
+    tf_keys = "wxadqe"
 
     def __init__(self, pos, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
         Entity.instances.append(self)
         self.ipos = lalib.InputVector(pos)
         self.irot = lalib.InputVector(rot)
-        self.iscl = lalib.InputVector(scl).diagonal()
+        self.iscl = lalib.InputVector(scl)
         self.key = key
         self.reset()
         self.selected = False
@@ -25,43 +26,26 @@ class Entity:
         return point.rotate_3d(self.rot)
 
     def scale_point(self, point):
-        if self.scale_factor < 0:
-            self.scale_factor = 0
-        self.scl = self.iscl.scalar(self.scale_factor)
-        return self.scl * point
+        return self.iscl.hadp(self.scl).hadp(point)
 
     def transform_point(self, point):
         return self.translate_point(self.scale_point(self.rotate_point(point)))
 
-    def controls(self, rot_speed, move_speed, scl_speed):
+    def controls(self, rot_speed, pos_speed, scl_speed):
         keys = pg.key.get_pressed()
         if self.selected:
-            if keys[pg.K_q]:
-                self.rot.change_item(rot_speed, 2)
-            if keys[pg.K_e]:
-                self.rot.change_item(-rot_speed, 2)
-            if keys[pg.K_a]:
-                self.rot.change_item(rot_speed, 1)
-            if keys[pg.K_d]:
-                self.rot.change_item(-rot_speed, 1)
-            if keys[pg.K_s]:
-                self.rot.change_item(-rot_speed, 0)
-            if keys[pg.K_w]:
-                self.rot.change_item(rot_speed, 0)
-            if keys[pg.K_LEFT]:
-                self.pos.change_item(-move_speed, 0)
-            if keys[pg.K_RIGHT]:
-                self.pos.change_item(move_speed, 0)
-            if keys[pg.K_UP]:
-                self.pos.change_item(move_speed, 2)
-            if keys[pg.K_DOWN]:
-                self.pos.change_item(-move_speed, 2)
-            if keys[pg.K_o]:
-                self.scale_factor -= scl_speed
-            if keys[pg.K_p]:
-                self.scale_factor += scl_speed
+            for tf in {"rot": "r", "pos": "t", "scl": "s"}.items():
+                if keys[eval("pg.K_" + tf[1])]:
+                    self.selected_tf = tf[0]
 
-            if keys[pg.K_r]:
+            if self.selected_tf is not None:
+                for action in range(6):
+                    if keys[eval("pg.K_" + Entity.tf_keys[action])]:
+                        op = "self." + self.selected_tf + ".change_item("
+                        amt = ("-" if action % 2 == 1 else "") + self.selected_tf + "_speed, " + str(action // 2) + ")"
+                        eval(op + amt)
+
+            if keys[pg.K_i]:
                 self.reset()
 
         if keys[eval("pg.K_" + self.key)]:
@@ -75,7 +59,8 @@ class Entity:
     def reset(self):
         self.pos = lalib.InputVector(self.ipos.vector)
         self.rot = lalib.InputVector(self.irot.vector)
-        self.scale_factor = 1
+        self.scl = lalib.InputVector(self.iscl.vector)
+        self.selected_tf = None
 
     @classmethod
     def select_all(cls):
@@ -99,7 +84,7 @@ class Mesh(Entity):
         tvertices = lalib.Matrix(1, 3)
         for x in range(self.vertices.height):
             tvertex = super().transform_point(self.vertices.get_row(x))
-            tvertices = tvertices.vertical_concatenate(tvertex.transpose())
+            tvertices = tvertices.vcon(tvertex.transpose())
         return tvertices
 
 
@@ -149,14 +134,14 @@ class PlatonicSolid(Polyhedron):
         for x in range(vertices.height):
             for y in range(vertices.height):
                 if x != y and y > x and vertices.get_row(x).distance(vertices.get_row(y)) == v_dist:
-                    edges = edges.vertical_concatenate([x, y])
+                    edges = edges.vcon([x, y])
         return edges
 
 
 class Tetrahedron(PlatonicSolid):
     def get_vertices(self):
         vertices = super().signs([self.radius] * 2)
-        return vertices.horizontal_concatenate(vertices.get_col(0).hadamard_product(vertices.get_col(1)))
+        return vertices.hcon(vertices.get_col(0).hadamard_product(vertices.get_col(1)))
 
 
 class Cube(PlatonicSolid):
@@ -173,7 +158,7 @@ class Dodecahedron(PlatonicSolid):
     def get_vertices(self):
         outer = super().signs([0, self.radius, self.radius / self.golden_ratio], True)
         inner = super().signs([self.radius] * 3)
-        return outer.vertical_concatenate(inner)
+        return outer.vcon(inner)
 
 
 class Icosahedron(PlatonicSolid):
@@ -218,7 +203,7 @@ class Camera(Entity):
                 projected_coords = lalib.Matrix(1, 2)
 
                 for coord in entity.transform().matrix:
-                    projected_coords = projected_coords.vertical_concatenate(self.project(lalib.InputVector(coord)).transpose())
+                    projected_coords = projected_coords.vcon(self.project(lalib.InputVector(coord)).transpose())
 
                 if self.show_edges:
                     self.render_edges(entity, projected_coords.matrix)
@@ -250,8 +235,7 @@ def main():
     camera = Camera([900, 600], 55, [0, 3, 0], '1')
 
     y = Octohedron([0, 0, 0], 1, colors.BLACK, '3')
-    y.show = True
-    #x = Cube([0, 0, 0], 1, colors.BLACK, '2')
+    # x = Cube([0, 0, 0], 1, colors.BLACK, '2')
     y.selected = True
 
     while True:

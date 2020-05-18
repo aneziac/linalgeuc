@@ -1,8 +1,8 @@
 # linalgeuc
 
-Linalgeuc is a geometry editor and graphing calculator in Euclidean space.
-It can graph vectors in both 2D and 3D space and animate transformations in real time.
-Note: currently very early in development.
+Linalgeuc is currently a 3D engine for Platonic Solids.
+However, it is planned to also be a geometry editor and graphing calculator in Euclidean space.
+This includes graphing vectors in both 2D and 3D space and animating transformations.
 
 # Dependencies
 
@@ -15,8 +15,11 @@ Note: currently very early in development.
 Clone, install dependencies, and run like the following:
 
 ``$ git clone https://github.com/robertgamer4/linalgeuc.git``
+
 ``$ cd linalgeuc``
+
 ``$ pip install -e .``
+
 ``$ python3 linalgeuc/graphics/raster.py``
 
 # Credits

@@ -281,6 +281,8 @@ class Matrix:
             result.push([(self.matrix[x][y] * other_matrix.matrix[x][y]) for y in range(self.width)])
         return result
 
+    hadp = hadamard_product
+
     def matrix_quotient(self, other_matrix):
         return self.hadamard_product(other_matrix.element_raise_to(-1))
 
