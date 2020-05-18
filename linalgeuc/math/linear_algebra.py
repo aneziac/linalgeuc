@@ -120,6 +120,18 @@ class Matrix:
                     return True
         return False
 
+    def is_in(self, val):
+        for x in range(self.height):
+            for y in range(self.width):
+                if self.matrix[x][y] == val:
+                    return True
+        return False
+
+    def is_same(self, other_matrix):
+        if self.matrix == other_matrix.matrix:
+            return True
+        return False
+
     @classmethod
     def identity(cls, n):
         result = cls(n, n)
@@ -167,10 +179,15 @@ class Matrix:
     __sub__ = subtract
 
     def submatrix(self, start_row, start_col, end_row, end_col):
-        result = Matrix(end_row - start_row, end_col - start_col)
-        for x in self.height:
-            for y in self.width:
-                if end_row > x >= start_row and end_col > y >= start_col:
+        assert start_row >= 0
+        assert start_col >= 0
+        assert end_row <= self.height
+        assert end_col <= self.width
+
+        result = Matrix(end_row - start_row + 1, end_col - start_col + 1)
+        for x in range(self.height):
+            for y in range(self.width):
+                if end_row >= x >= start_row and end_col >= y >= start_col:
                     result.push(self.matrix[x][y])
         return result
 
@@ -194,7 +211,7 @@ class Matrix:
 
         sum = 0
         for y in range(self.width):
-            sum += self.matrix[0][y] * self.minor(0, y).det * math.cos(y * math.pi)
+            sum += self.matrix[0][y] * self.minor(0, y) * math.cos(y * math.pi)
         return sum
 
     det = determinant
@@ -346,9 +363,13 @@ class Matrix:
             result = other_matrix
         return result
 
+    hcon = horizontal_concatenate
+
     def vertical_concatenate(self, other_matrix):
         other_matrix = self.allow_concatenation(other_matrix, "width")
         return self.transpose().horizontal_concatenate(other_matrix.transpose(), "widths").transpose()
+
+    vcon = vertical_concatenate
 
     def overwrite(self, other_matrix, row, col):
         if other_matrix.width > self.width or other_matrix.height > self.height:
@@ -405,6 +426,8 @@ class Matrix:
                 result.set_item(random.randint(*value_range), x, y)
         return result
 
+    rand = random_matrix
+
     @property
     def eigenvalues(self):
         self.ensure_square()
@@ -435,7 +458,8 @@ class InputMatrix(Matrix):
     def __init__(self, *array):
         if len(array) > 1:
             array = [x for x in array]
-        array = array[0]
+        else:
+            array = array[0]
         height = len(array)
         width = len(array[0])
         for x in range(height):

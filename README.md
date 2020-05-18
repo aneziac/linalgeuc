@@ -4,18 +4,20 @@ Linalgeuc is a geometry editor and graphing calculator in Euclidean space.
 It can graph vectors in both 2D and 3D space and animate transformations in real time.
 Note: currently very early in development.
 
-# System Requirements
+# Dependencies
 
-- MacOS or Linux
 - Python 3.3 or newer
+- pygame
+- numpy
 
 # Usage
 
-First, ``cd`` into the repository directory.
+Clone, install dependencies, and run like the following:
 
-``$ make install`` will install linalgeuc.
-``$ make run-raster`` will run the rasterization engine.
-``$ make clean`` will remove the virtual environment and other unnecessary files.
+``$ git clone https://github.com/robertgamer4/linalgeuc.git``
+``$ cd linalgeuc``
+``$ pip install -e .``
+``$ python3 linalgeuc/graphics/raster.py``
 
 # Credits
 
