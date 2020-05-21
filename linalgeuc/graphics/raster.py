@@ -1,6 +1,9 @@
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+
 import math
 import pygame as pg
-from itertools import permutations
+from collections import deque
 import linalgeuc.graphics.colors as colors
 import linalgeuc.math.linear_algebra as lalib
 
@@ -110,30 +113,34 @@ class PlatonicSolid(Polyhedron):
         edges = self.get_edges(vertices)
         super().__init__(center, vertices, edges, color, key, rot, scl)
 
-    def signs(self, values, permute=False):
-        def recurse(n, val, cur, prev=[]):
-            for x in cur:
-                if n == 1 and [prev + [x]] not in output:
-                    output.append(prev + [x])
-                else:
-                    recurse(n - 1, val, [val[-n]] + [(val[-n] * -1)], prev + [x])
+    def signs(self, values):
+        def recurse(n, val, cur=None, prev=[]):
+            if cur is None:
+                recurse(n, val, [val[0]] + [(val[0] * -1)])
+            else:
+                for x in cur:
+                    if n == 1 and prev + [x] not in output:
+                        output.append(prev + [x])
+                    elif n > 1:
+                        recurse(n - 1, val, [val[-n + 1]] + [(val[-n + 1] * -1)], prev + [x])
 
         output = []
-        if permute:
-            output = list(set(list(permutations(values)) + list(permutations([-x for x in values]))))
-        else:
-            recurse(len(values), values, [values[0]] + [(values[0] * -1)])
+        lst = deque(values)
+        for x in range(len(values)):
+            recurse(len(values), list(lst))
+            lst.rotate()
+
         return lalib.InputMatrix(output)
 
     def get_edges(self, vertices):
         edges = lalib.Matrix(1, 2)
-        v_dist = vertices.get_row(0).magnitude() * 5
+        v_dist = vertices.get_row(0).distance(vertices.get_row(1))
         for x in range(vertices.height - 1):
             v_dist = min(v_dist, vertices.get_row(0).distance(vertices.get_row(x + 1)))
 
         for x in range(vertices.height):
             for y in range(vertices.height):
-                if x != y and y > x and vertices.get_row(x).distance(vertices.get_row(y)) == v_dist:
+                if x != y and y > x and round(vertices.get_row(x).distance(vertices.get_row(y)), 2) <= round(v_dist, 2):
                     edges = edges.vcon([x, y])
         return edges
 
@@ -141,7 +148,7 @@ class PlatonicSolid(Polyhedron):
 class Tetrahedron(PlatonicSolid):
     def get_vertices(self):
         vertices = super().signs([self.radius] * 2)
-        return vertices.hcon(vertices.get_col(0).hadamard_product(vertices.get_col(1)))
+        return vertices.hcon(vertices.get_col(0).hadp(vertices.get_col(1)))
 
 
 class Cube(PlatonicSolid):
@@ -149,21 +156,21 @@ class Cube(PlatonicSolid):
         return super().signs([self.radius] * 3)
 
 
-class Octohedron(PlatonicSolid):
+class Octahedron(PlatonicSolid):
     def get_vertices(self):
-        return super().signs([0, 0, self.radius], True)
+        return super().signs([0, 0, self.radius])
 
 
 class Dodecahedron(PlatonicSolid):
     def get_vertices(self):
-        outer = super().signs([0, self.radius, self.radius / self.golden_ratio], True)
+        outer = super().signs([0, self.radius * self.golden_ratio, self.radius / self.golden_ratio])
         inner = super().signs([self.radius] * 3)
         return outer.vcon(inner)
 
 
 class Icosahedron(PlatonicSolid):
     def get_vertices(self):
-        return super().signs([0, self.radius, self.golden_ratio * self.radius], True)
+        return super().signs([0, self.radius, self.golden_ratio * self.radius])
 
 
 class Camera(Entity):
@@ -172,7 +179,7 @@ class Camera(Entity):
         self.screen_dims = screen_dims
         self.screen = pg.display.set_mode(screen_dims)
         self.font = pg.font.Font(None, 15)
-        pg.display.set_caption("raster v.0.0.3")
+        pg.display.set_caption("raster v.0.1.0")
         self.fov = math.radians(fov)
         self.plane_dist = ((screen_dims[0] / 2) / math.tan(fov / 2))
         self.label_vertices = False
@@ -209,7 +216,7 @@ class Camera(Entity):
                     self.render_edges(entity, projected_coords.matrix)
 
                 if self.label_vertices:
-                    self.render_vertex_labels(entity, projected_coords.matrix, self.font)
+                    self.render_vertex_labels(entity, projected_coords.matrix)
 
     def render_edges(self, entity, proj_coords):
         for edge in entity.edges.matrix:
@@ -234,8 +241,7 @@ def main():
 
     camera = Camera([900, 600], 55, [0, 3, 0], '1')
 
-    y = Octohedron([0, 0, 0], 1, colors.BLACK, '3')
-    # x = Cube([0, 0, 0], 1, colors.BLACK, '2')
+    y = Dodecahedron([0, 0, 0], 1, colors.BLACK, '2')
     y.selected = True
 
     while True:
