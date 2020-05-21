@@ -44,8 +44,9 @@ class Matrix:
             print(" ")
         print(" ")
 
+    @property
     def size(self):
-        return self.height, self.width
+        return [self.height, self.width]
 
     def set_item(self, item, row, col=0):
         if isinstance(self, Vector):
@@ -57,23 +58,26 @@ class Matrix:
             self.vector[row] += delta
         self.matrix[row][col] += delta
 
+    @property
     def num_items(self):
         return self.height * self.width
 
     def get_item(self, row, col):
         return self.matrix[row][col]
 
-    def get_column(self, x):
+    def get_column_as_list(self, x):
         return [row[x] for row in self.matrix]
 
-    def get_col_as_vec(self, x):
-        return InputVector(self.get_column(x))
+    def get_column(self, x):
+        return InputVector(self.get_column_as_list(x))
 
-    def get_row(self, y):
+    get_col = get_column
+
+    def get_row_as_list(self, y):
         return self.matrix[y]
 
-    def get_row_as_vec(self, y):
-        return InputVector(self.get_row(y))
+    def get_row(self, y):
+        return InputVector(self.get_row_as_list(y))
 
     def ensure_equal_heights(self, other_matrix, dim="heights"):
         if self.height != other_matrix.height:
@@ -108,11 +112,24 @@ class Matrix:
                     raise ValueError("At least some elements of the matrix are empty")
         return True
 
+    @property
     def has_values(self):
         for x in range(self.height):
             for y in range(self.width):
                 if self.matrix[x][y] is not None:
                     return True
+        return False
+
+    def is_in(self, val):
+        for x in range(self.height):
+            for y in range(self.width):
+                if self.matrix[x][y] == val:
+                    return True
+        return False
+
+    def is_same(self, other_matrix):
+        if self.matrix == other_matrix.matrix:
+            return True
         return False
 
     @classmethod
@@ -162,10 +179,15 @@ class Matrix:
     __sub__ = subtract
 
     def submatrix(self, start_row, start_col, end_row, end_col):
-        result = Matrix(end_row - start_row, end_col - start_col)
-        for x in self.height:
-            for y in self.width:
-                if end_row > x >= start_row and end_col > y >= start_col:
+        assert start_row >= 0
+        assert start_col >= 0
+        assert end_row <= self.height
+        assert end_col <= self.width
+
+        result = Matrix(end_row - start_row + 1, end_col - start_col + 1)
+        for x in range(self.height):
+            for y in range(self.width):
+                if end_row >= x >= start_row and end_col >= y >= start_col:
                     result.push(self.matrix[x][y])
         return result
 
@@ -189,7 +211,7 @@ class Matrix:
 
         sum = 0
         for y in range(self.width):
-            sum += self.matrix[0][y] * self.minor(0, y).det * math.cos(y * math.pi)
+            sum += self.matrix[0][y] * self.minor(0, y) * math.cos(y * math.pi)
         return sum
 
     det = determinant
@@ -237,17 +259,10 @@ class Matrix:
 
         product = create_array(self.height, other_matrix.width)
 
-        def multiply_lines(row, column):
-            total = 0
-            for i in range(len(row)):
-                total += float(row[i]) * float(column[i])
-            return round(total, 4)
-
         for y in range(self.height):
             row = self.get_row(y)
             for x in range(other_matrix.width):
-                column = other_matrix.get_column(x)
-                product.push(multiply_lines(row, column))
+                product.push(row.dot(other_matrix.get_column(x)))
 
         return product
 
@@ -265,6 +280,8 @@ class Matrix:
         for x in range(self.height):
             result.push([(self.matrix[x][y] * other_matrix.matrix[x][y]) for y in range(self.width)])
         return result
+
+    hadp = hadamard_product
 
     def matrix_quotient(self, other_matrix):
         return self.hadamard_product(other_matrix.element_raise_to(-1))
@@ -284,14 +301,13 @@ class Matrix:
 
     def raise_to(self, n):
         self.ensure_square()
-        result = Matrix(self.height, self.width)
+        result = Matrix.identity(self.height)
         for x in range(n):
-            result *= self
+            result *= self ** (np.sign(n))
         return result
 
     def kronecker_product(self, other_matrix):
         result = Matrix(self.height * other_matrix.height, self.width * other_matrix.width)
-        print(self.height * other_matrix.height, self.width * other_matrix.width)
 
         for x in range(self.height):
             for y in range(self.width):
@@ -322,17 +338,26 @@ class Matrix:
         else:
             return False
 
-    @staticmethod
-    def rotation(theta, degrees):
+    @classmethod
+    def rotation(cls, theta, degrees):
         if degrees:
             theta = math.radians(theta)
-        result = Matrix(2, 2)
+        result = cls(2, 2)
         result.push([math.cos(theta), -math.sin(theta), math.sin(theta), math.cos(theta)])
         return result
 
+    def allow_concatenation(self, other_matrix, dim):
+        if not isinstance(other_matrix, Matrix):
+            other_matrix = input_array(other_matrix)
+        if eval("self." + dim) != eval("other_matrix." + dim):
+            other_matrix = other_matrix.transpose()
+        return other_matrix
+
     def horizontal_concatenate(self, other_matrix, dim="heights"):
+        other_matrix = self.allow_concatenation(other_matrix, "height")
         self.ensure_equal_heights(other_matrix, dim)
-        if self.has_values():
+
+        if self.has_values:
             result = create_array(self.height, self.width + other_matrix.width)
             for x in range(self.height):
                 result.push([y for y in self.matrix[x] + other_matrix.matrix[x]])
@@ -340,8 +365,13 @@ class Matrix:
             result = other_matrix
         return result
 
+    hcon = horizontal_concatenate
+
     def vertical_concatenate(self, other_matrix):
+        other_matrix = self.allow_concatenation(other_matrix, "width")
         return self.transpose().horizontal_concatenate(other_matrix.transpose(), "widths").transpose()
+
+    vcon = vertical_concatenate
 
     def overwrite(self, other_matrix, row, col):
         if other_matrix.width > self.width or other_matrix.height > self.height:
@@ -386,16 +416,19 @@ class Matrix:
     def sum_values(self):
         total = 0
         for x in range(self.height):
-            for y in range(self.height):
+            for y in range(self.width):
                 total += self.matrix[x][y]
         return total
 
-    def random_matrix(self, height, width, value_range=[-20, 20]):
-        result = Matrix(height, width)
+    @classmethod
+    def random_matrix(cls, height, width, value_range=[-20, 20]):
+        result = cls(height, width)
         for x in range(height):
             for y in range(width):
                 result.set_item(random.randint(*value_range), x, y)
         return result
+
+    rand = random_matrix
 
     @property
     def eigenvalues(self):
@@ -417,7 +450,7 @@ class Matrix:
         for i, eig in enumerate(eigenvalues):
             x = self - Matrix.identity.scalar(eig)
             if len(eigenvalues) == 2:
-                eigenvector = x.get_column(0)
+                eigenvector = x.get_col_as_vec(0)
             elif len(eigenvalues) == 3:
                 eigenvector = x.get_col_as_vec(0).cross(x.get_col_as_vec(1))
             result.overwrite(eigenvector, 0, i)
@@ -425,7 +458,9 @@ class Matrix:
 
 class InputMatrix(Matrix):
     def __init__(self, *array):
-        if len(array) == 1:
+        if len(array) > 1:
+            array = [x for x in array]
+        else:
             array = array[0]
         height = len(array)
         width = len(array[0])
@@ -435,7 +470,8 @@ class InputMatrix(Matrix):
 
         super().__init__(height, width)
         for x in array:
-            self.push(x)
+            for y in x:
+                self.push(y)
 
 
 class Vector(Matrix):
@@ -445,7 +481,6 @@ class Vector(Matrix):
     def get_vector_item(self, n):
         return self.vector(n)
 
-    @property
     def magnitude(self, norm=2):
         if norm == "inf":
             return max([abs(x) for x in self.vector])
@@ -455,12 +490,15 @@ class Vector(Matrix):
     def normalize(self):
         norm_vec = Vector(self.height)
         for x in range(self.height):
-            norm_vec.push(x / self.magnitude)
+            norm_vec.push(x / self.magnitude())
         return norm_vec
 
     def dot_product(self, other_vector):
         other_vector.ensure_vector()
-        return (other_vector * self.transpose()).vector[0]
+        total = 0
+        for i in range(self.height):
+            total += float(self.vector[i]) * float(other_vector.vector[i])
+        return round(total, 4)
 
     dot = dot_product
 
@@ -545,7 +583,7 @@ class Vector(Matrix):
 
     def distance(self, other_vector, norm=2):
         other_vector.ensure_vector()
-        return other_vector - self.magnitude(norm)
+        return (other_vector - self).magnitude(norm)
 
     def midpoint(self, other_vector):
         other_vector.ensure_vector()
@@ -566,14 +604,14 @@ class Iteration:
 
     def iterate(self, amount):
         for x in range(amount):
-            self.state = self.transition * self.state
+            self.state *= self.transition
         return self.state.matrix
 
     def iterate_until(self, threshold_vector):
         iterations = 0
 
         while self.state.is_greater_than(threshold_vector):
-            self.state = self.transition * self.state
+            self.state *= self.transition
             iterations += 1
 
         return iterations
@@ -584,3 +622,10 @@ def create_array(height, width):
         return Vector(height)
     elif width >= 1:
         return Matrix(height, width)
+
+
+def input_array(*array):
+    if type(array[0]) == list:
+        return InputMatrix(array)
+    else:
+        return InputVector(array)

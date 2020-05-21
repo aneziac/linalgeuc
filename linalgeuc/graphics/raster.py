@@ -1,17 +1,22 @@
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+
 import math
 import pygame as pg
+from collections import deque
 import linalgeuc.graphics.colors as colors
 import linalgeuc.math.linear_algebra as lalib
 
 
 class Entity:
     instances = []
+    tf_keys = "wxadqe"
 
     def __init__(self, pos, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
         Entity.instances.append(self)
         self.ipos = lalib.InputVector(pos)
         self.irot = lalib.InputVector(rot)
-        self.iscl = lalib.InputVector(scl).diagonal()
+        self.iscl = lalib.InputVector(scl)
         self.key = key
         self.reset()
         self.selected = False
@@ -24,48 +29,30 @@ class Entity:
         return point.rotate_3d(self.rot)
 
     def scale_point(self, point):
-        if self.scale_factor < 0:
-            self.scale_factor = 0
-        self.scl = self.iscl.scalar(self.scale_factor)
-        return self.scl * point
+        return self.iscl.hadp(self.scl).hadp(point)
 
     def transform_point(self, point):
         return self.translate_point(self.scale_point(self.rotate_point(point)))
 
-    def controls(self, rot_speed, move_speed, scl_speed):
+    def controls(self, rot_speed, pos_speed, scl_speed):
         keys = pg.key.get_pressed()
         if self.selected:
-            if keys[pg.K_q]:
-                self.rot.change_item(rot_speed, 2)
-            if keys[pg.K_e]:
-                self.rot.change_item(-rot_speed, 2)
-            if keys[pg.K_a]:
-                self.rot.change_item(rot_speed, 1)
-            if keys[pg.K_d]:
-                self.rot.change_item(-rot_speed, 1)
-            if keys[pg.K_s]:
-                self.rot.change_item(-rot_speed, 0)
-            if keys[pg.K_w]:
-                self.rot.change_item(rot_speed, 0)
-            if keys[pg.K_LEFT]:
-                self.pos.change_item(-move_speed, 0)
-            if keys[pg.K_RIGHT]:
-                self.pos.change_item(move_speed, 0)
-            if keys[pg.K_UP]:
-                self.pos.change_item(move_speed, 2)
-            if keys[pg.K_DOWN]:
-                self.pos.change_item(-move_speed, 2)
-            if keys[pg.K_o]:
-                self.scale_factor -= scl_speed
-            if keys[pg.K_p]:
-                self.scale_factor += scl_speed
+            for tf in {"rot": "r", "pos": "t", "scl": "s"}.items():
+                if keys[eval("pg.K_" + tf[1])]:
+                    self.selected_tf = tf[0]
 
-            if keys[pg.K_r]:
+            if self.selected_tf is not None:
+                for action in range(6):
+                    if keys[eval("pg.K_" + Entity.tf_keys[action])]:
+                        op = "self." + self.selected_tf + ".change_item("
+                        amt = ("-" if action % 2 == 1 else "") + self.selected_tf + "_speed, " + str(action // 2) + ")"
+                        eval(op + amt)
+
+            if keys[pg.K_i]:
                 self.reset()
 
         if keys[eval("pg.K_" + self.key)]:
             Entity.deselect_all()
-            print("hello", self)
             self.selected = True
         if keys[pg.K_ESCAPE] or pg.QUIT in [event.type for event in pg.event.get()]:
             import sys
@@ -75,7 +62,8 @@ class Entity:
     def reset(self):
         self.pos = lalib.InputVector(self.ipos.vector)
         self.rot = lalib.InputVector(self.irot.vector)
-        self.scale_factor = 1
+        self.scl = lalib.InputVector(self.iscl.vector)
+        self.selected_tf = None
 
     @classmethod
     def select_all(cls):
@@ -98,73 +86,91 @@ class Mesh(Entity):
     def transform(self):
         tvertices = lalib.Matrix(1, 3)
         for x in range(self.vertices.height):
-            tvertex = super().transform_point(self.vertices.get_row_as_vec(x))
-            tvertices = tvertices.vertical_concatenate(tvertex.transpose())
+            tvertex = super().transform_point(self.vertices.get_row(x))
+            tvertices = tvertices.vcon(tvertex.transpose())
         return tvertices
 
 
-class Cube(Mesh):
-    def __init__(self, boundaries, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
-        pos = self.get_pos(boundaries)
-        vertices = self.get_vertices(boundaries)
+class Plane(Mesh):
+    pass
+
+
+class Circle(Mesh):
+    pass
+
+
+class Polyhedron(Mesh):
+    # F + V - E = 2
+    pass
+
+
+class PlatonicSolid(Polyhedron):
+    def __init__(self, center, radius, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
+        self.golden_ratio = (1 + (5 ** 0.5)) / 2
+        self.radius = radius
+        vertices = self.get_vertices()
+        vertices += lalib.InputVector(center).stack(vertices.height, False)
         edges = self.get_edges(vertices)
-        super().__init__(pos, vertices, edges, color, key, rot, scl)
+        super().__init__(center, vertices, edges, color, key, rot, scl)
 
-    def get_pos(self, boundaries):
-        pos = []
-        for x in range(3):
-            pos.append((boundaries[0][x] + boundaries[1][x]) / 2)
-        return pos
+    def signs(self, values):
+        def recurse(n, val, cur=None, prev=[]):
+            if cur is None:
+                recurse(n, val, [val[0]] + [(val[0] * -1)])
+            else:
+                for x in cur:
+                    if n == 1 and prev + [x] not in output:
+                        output.append(prev + [x])
+                    elif n > 1:
+                        recurse(n - 1, val, [val[-n + 1]] + [(val[-n + 1] * -1)], prev + [x])
 
-    def get_vertices(self, boundaries):
-        def recurse(p, n, c, boundaries):
-            for x in c:
-                if n == 1:
-                    nonlocal vertices
-                    vertices = vertices.vertical_concatenate(lalib.InputVector(p + [x]).transpose())
-                else:
-                    recurse(p + [x], n - 1, [boundaries[0][-n], boundaries[1][-n]], boundaries)
+        output = []
+        lst = deque(values)
+        for x in range(len(values)):
+            recurse(len(values), list(lst))
+            lst.rotate()
 
-        vertices = lalib.Matrix(1, 3)
-        recurse([], len(boundaries[0]), [boundaries[0][0], boundaries[1][0]], boundaries)
-        return vertices
+        return lalib.InputMatrix(output)
 
     def get_edges(self, vertices):
         edges = lalib.Matrix(1, 2)
+        v_dist = vertices.get_row(0).distance(vertices.get_row(1))
+        for x in range(vertices.height - 1):
+            v_dist = min(v_dist, vertices.get_row(0).distance(vertices.get_row(x + 1)))
+
         for x in range(vertices.height):
             for y in range(vertices.height):
-                xrow = vertices.matrix[x]
-                yrow = vertices.matrix[y]
-                if x != y and y > x and ((xrow[0] == yrow[0] and xrow[1] == yrow[1]) or
-                                         (xrow[1] == yrow[1] and xrow[2] == yrow[2]) or
-                                         (xrow[0] == yrow[0] and xrow[2] == yrow[2])):
-                    edges = edges.vertical_concatenate(lalib.InputVector([x, y]).transpose())
+                if x != y and y > x and round(vertices.get_row(x).distance(vertices.get_row(y)), 2) <= round(v_dist, 2):
+                    edges = edges.vcon([x, y])
         return edges
 
 
-class Tetrahedron(Mesh):
-    def __init__(self, center, radius, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
-        vertices = Tetrahedron.get_vertices(lalib.InputVector(center), radius)
-        edges = Tetrahedron.get_edges(vertices)
-        super().__init__(center, vertices, edges, color, key, rot, scl)
+class Tetrahedron(PlatonicSolid):
+    def get_vertices(self):
+        vertices = super().signs([self.radius] * 2)
+        return vertices.hcon(vertices.get_col(0).hadp(vertices.get_col(1)))
 
-    @staticmethod
-    def get_vertices(center, radius):
-        theta = math.pi / 6
-        x = radius * math.cos(theta) * math.cos(theta)
-        y = -radius * math.sin(theta) * math.cos(theta)
-        z = -radius * math.sin(theta)
-        vertices = lalib.InputMatrix([0, 0, radius], [x, y, z], [0, radius * math.cos(theta), z], [-x, y, z])
-        return center.stack(4, False) + vertices
 
-    @staticmethod
-    def get_edges(vertices):
-        edges = lalib.Matrix(1, 2)
-        for x in range(vertices.height):
-            for y in range(vertices.height):
-                if x != y and y > x:
-                    edges = edges.vertical_concatenate(lalib.InputVector([x, y]).transpose())
-        return edges
+class Cube(PlatonicSolid):
+    def get_vertices(self):
+        return super().signs([self.radius] * 3)
+
+
+class Octahedron(PlatonicSolid):
+    def get_vertices(self):
+        return super().signs([0, 0, self.radius])
+
+
+class Dodecahedron(PlatonicSolid):
+    def get_vertices(self):
+        outer = super().signs([0, self.radius * self.golden_ratio, self.radius / self.golden_ratio])
+        inner = super().signs([self.radius] * 3)
+        return outer.vcon(inner)
+
+
+class Icosahedron(PlatonicSolid):
+    def get_vertices(self):
+        return super().signs([0, self.radius, self.golden_ratio * self.radius])
 
 
 class Camera(Entity):
@@ -173,7 +179,7 @@ class Camera(Entity):
         self.screen_dims = screen_dims
         self.screen = pg.display.set_mode(screen_dims)
         self.font = pg.font.Font(None, 15)
-        pg.display.set_caption("raster v.0.0.3")
+        pg.display.set_caption("raster v.0.1.0")
         self.fov = math.radians(fov)
         self.plane_dist = ((screen_dims[0] / 2) / math.tan(fov / 2))
         self.label_vertices = False
@@ -204,13 +210,13 @@ class Camera(Entity):
                 projected_coords = lalib.Matrix(1, 2)
 
                 for coord in entity.transform().matrix:
-                    projected_coords = projected_coords.vertical_concatenate(self.project(lalib.InputVector(coord)).transpose())
+                    projected_coords = projected_coords.vcon(self.project(lalib.InputVector(coord)).transpose())
 
                 if self.show_edges:
                     self.render_edges(entity, projected_coords.matrix)
 
                 if self.label_vertices:
-                    self.render_vertex_labels(entity, projected_coords.matrix, self.font)
+                    self.render_vertex_labels(entity, projected_coords.matrix)
 
     def render_edges(self, entity, proj_coords):
         for edge in entity.edges.matrix:
@@ -235,10 +241,8 @@ def main():
 
     camera = Camera([900, 600], 55, [0, 3, 0], '1')
 
-    y = Tetrahedron([0, 0, 0], 1, colors.BLACK, '3')
-    y.show = False
-    x = Cube([[-1, -1, -1], [1, 1, 1]], colors.BLACK, '2')
-    x.selected = True
+    y = Dodecahedron([0, 0, 0], 1, colors.BLACK, '2')
+    y.selected = True
 
     while True:
         camera.loop()

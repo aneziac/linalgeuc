@@ -6,3 +6,4 @@ graphing.py
 polygon.py
 venv/
 linalgeuc.egg-info/
+.coverage
