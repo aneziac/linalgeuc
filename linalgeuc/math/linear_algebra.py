@@ -34,7 +34,9 @@ class Matrix:
         else:
             push_single(item)
 
-    def print(self, round_vals=False):
+    def print(self, round_vals=False, name=None):
+        if name is not None:
+            print(name + ' =')
         for x in range(self.height):
             for y in range(self.width):
                 if round_vals:
@@ -223,6 +225,7 @@ class Matrix:
             result.push([(self.matrix[x][y] * scl) for y in range(self.width)])
         return result
 
+    @property
     def inverse(self):
         self.ensure_square()
 
@@ -238,7 +241,7 @@ class Matrix:
 
     def solve_system(self, vector):
         vector.ensure_vector()
-        return self.inv() * vector
+        return self.inv * vector
 
     @property
     def trace(self):
@@ -269,7 +272,7 @@ class Matrix:
     __mul__ = multiply
 
     def divide(self, other_matrix):
-        return self.multiply(other_matrix.inv())
+        return self.multiply(other_matrix.inv)
 
     __div__ = divide
 
@@ -284,6 +287,7 @@ class Matrix:
     hadp = hadamard_product
 
     def matrix_quotient(self, other_matrix):
+        self.hadamard_product(other_matrix.element_raise_to(-1))
         return self.hadamard_product(other_matrix.element_raise_to(-1))
 
     def element_add(self, n):
@@ -302,8 +306,14 @@ class Matrix:
     def raise_to(self, n):
         self.ensure_square()
         result = Matrix.identity(self.height)
-        for x in range(n):
-            result *= self ** (np.sign(n))
+        if n > 0:
+            for x in range(n):
+                result *= self
+        elif n < 0:
+            inverse = self.inv
+            for x in range(-n):
+                result *= inverse
+
         return result
 
     def kronecker_product(self, other_matrix):
@@ -430,6 +440,15 @@ class Matrix:
 
     rand = random_matrix
 
+    def round_matrix(self, decimal_places=0):
+        result = Matrix(self.height, self.width)
+
+        for x in range(self.height):
+            for y in range(self.width):
+                result.push(round(self.matrix[x][y], decimal_places))
+
+        return result
+
     @property
     def eigenvalues(self):
         self.ensure_square()
@@ -505,6 +524,8 @@ class Vector(Matrix):
     def outer_product(self, other_vector):
         other_vector.ensure_vector()
         return self * other_vector.transpose()
+
+    outer = outer_product
 
     def get_angle(self, other_vector, deg=False):
         other_vector.ensure_vector()

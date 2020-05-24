@@ -29,6 +29,8 @@ class Entity:
         return point.rotate_3d(self.rot)
 
     def scale_point(self, point):
+        for x in range(self.scl.height):
+            self.vector[x] = max(0, self.vector[x])
         return self.iscl.hadp(self.scl).hadp(point)
 
     def transform_point(self, point):
@@ -239,9 +241,9 @@ def main():
     pg.init()
     pg.font.init()
 
-    camera = Camera([900, 600], 55, [0, 3, 0], '1')
+    camera = Camera([900, 600], 55, [0, 5, 0], '1')
 
-    y = Dodecahedron([0, 0, 0], 1, colors.BLACK, '2')
+    y = Icosahedron([0, 0, 0], 1, colors.BLACK, '2')
     y.selected = True
 
     while True:
