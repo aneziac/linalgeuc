@@ -30,7 +30,7 @@ class Entity:
 
     def scale_point(self, point):
         for x in range(self.scl.height):
-            self.vector[x] = max(0, self.vector[x])
+            self.scl.vector[x] = max(0, self.scl.vector[x])
         return self.iscl.hadp(self.scl).hadp(point)
 
     def transform_point(self, point):
@@ -93,23 +93,10 @@ class Mesh(Entity):
         return tvertices
 
 
-class Plane(Mesh):
-    pass
-
-
-class Circle(Mesh):
-    pass
-
-
-class Polyhedron(Mesh):
-    # F + V - E = 2
-    pass
-
-
-class PlatonicSolid(Polyhedron):
-    def __init__(self, center, radius, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
-        self.golden_ratio = (1 + (5 ** 0.5)) / 2
+class Regular(Mesh):
+    def __init__(self, center, radius, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1], resolution=20):
         self.radius = radius
+        self.resolution = resolution
         vertices = self.get_vertices()
         vertices += lalib.InputVector(center).stack(vertices.height, False)
         edges = self.get_edges(vertices)
@@ -137,6 +124,7 @@ class PlatonicSolid(Polyhedron):
     def get_edges(self, vertices):
         edges = lalib.Matrix(1, 2)
         v_dist = vertices.get_row(0).distance(vertices.get_row(1))
+
         for x in range(vertices.height - 1):
             v_dist = min(v_dist, vertices.get_row(0).distance(vertices.get_row(x + 1)))
 
@@ -145,6 +133,37 @@ class PlatonicSolid(Polyhedron):
                 if x != y and y > x and round(vertices.get_row(x).distance(vertices.get_row(y)), 2) <= round(v_dist, 2):
                     edges = edges.vcon([x, y])
         return edges
+
+
+class Polygon(Mesh):
+    pass
+
+
+class Plane(Regular, Polygon):
+    def get_vertices(self):
+        return super().signs([self.radius] * 2).hcon(lalib.Matrix.zeros(4, 1))
+
+
+class Circle(Regular, Polygon):
+    def get_vertices(self):
+        vertices = lalib.Matrix(1, 3)
+        angle_inc = 2 * math.pi / self.resolution
+
+        for x in range(self.resolution):
+            vertices = vertices.vcon(lalib.InputVector([math.cos(angle_inc * x), math.sin(angle_inc * x), 0]).transpose())
+
+        return vertices
+
+
+class Polyhedron(Mesh):
+    # F + V - E = 2
+    pass
+
+
+class PlatonicSolid(Regular, Polyhedron):
+    def __init__(self, center, radius, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
+        self.golden_ratio = (1 + (5 ** 0.5)) / 2
+        super().__init__(center, radius, color, key, rot, scl)
 
 
 class Tetrahedron(PlatonicSolid):
@@ -243,7 +262,7 @@ def main():
 
     camera = Camera([900, 600], 55, [0, 5, 0], '1')
 
-    y = Icosahedron([0, 0, 0], 1, colors.BLACK, '2')
+    y = Circle([0, 0, 0], 1, colors.BLACK, '2')
     y.selected = True
 
     while True:
