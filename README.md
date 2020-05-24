@@ -12,7 +12,7 @@ This includes graphing vectors in both 2D and 3D space and animating transformat
 
 # Usage
 
-Clone, install dependencies, and run like the following:
+Clone ([or download](https://github.com/robertgamer4/linalgeuc/archive/master.zip)), install dependencies, and run like the following:
 
 ``$ git clone https://github.com/robertgamer4/linalgeuc.git``
 
