@@ -11,6 +11,7 @@ import linalgeuc.math.linear_algebra as lalib
 class Entity:
     instances = []
     tf_keys = "wxadqe"
+    scl_keys = "op"
     fov_keys = "op"
 
     def __init__(self, pos=[0, 0, 0], rot=[0, 0, 0], scl=[1, 1, 1], key=None):
@@ -22,7 +23,7 @@ class Entity:
             self.ipos = pos
 
         if isinstance(self, Mesh):
-            self.vertices += lalib.InputVector(pos).stack(self.vertices.height, False)
+            self.vertices += self.ipos.stack(self.vertices.height, False)
 
         self.irot = lalib.InputVector(rot)
         self.iscl = lalib.InputVector(scl)
@@ -50,6 +51,7 @@ class Entity:
 
     def controls(self, rot_speed, pos_speed, scl_speed):
         keys = pg.key.get_pressed()
+        events = [event.type for event in pg.event.get()]
 
         if self.selected:
             if isinstance(self, Camera):
@@ -62,6 +64,11 @@ class Entity:
                     self.selected_tf = tf[0]
 
             if self.selected_tf is not None:
+                if self.selected_tf == "scl":
+                    for x in range(len(Entity.scl_keys)):
+                        if keys[eval("pg.K_" + Entity.scl_keys[x])]:
+                            self.scl = self.scl.scalar(((x * 2) - 1) * scl_speed + 1)
+
                 for action in range(len(Entity.tf_keys)):
                     if keys[eval("pg.K_" + Entity.tf_keys[action])]:
                         op = "self." + self.selected_tf + ".change_item("
@@ -70,11 +77,15 @@ class Entity:
 
             if keys[pg.K_i]:
                 self.reset()
+            if keys[pg.K_h]:
+                while pg.key.get_pressed()[pg.K_h]:
+                    pg.event.get()
+                self.show = not self.show
 
         if self.key is not None and keys[eval("pg.K_" + self.key)]:
             Entity.deselect_all()
             self.selected = True
-        if keys[pg.K_ESCAPE] or pg.QUIT in [event.type for event in pg.event.get()]:
+        if keys[pg.K_ESCAPE] or pg.QUIT in events:
             import sys
             pg.quit()
             sys.exit()
@@ -122,7 +133,6 @@ class Regular(Mesh):
     def __init__(self, radius=1, **kwargs):
         self.radius = radius
         vertices = self.get_vertices()
-        #vertices += lalib.InputVector(center).stack(vertices.height, False)
         edges = self.get_edges(vertices)
         super().__init__(vertices, edges, **kwargs)
 
@@ -147,10 +157,10 @@ class Regular(Mesh):
 
     def get_edges(self, vertices):
         edges = lalib.Matrix(1, 2)
-        v_dist = vertices.get_row(0).distance(vertices.get_row(1))
+        v_dist = vertices.get_row(vertices.height - 2).distance(vertices.get_row(vertices.height - 1))
 
-        for x in range(vertices.height - 1):
-            v_dist = min(v_dist, vertices.get_row(0).distance(vertices.get_row(x + 1)))
+        for x in range(vertices.height - 3):
+            v_dist = min(v_dist, vertices.get_row(vertices.height - 2).distance(vertices.get_row(vertices.height - x - 3)))
 
         for x in range(vertices.height):
             for y in range(vertices.height):
@@ -160,22 +170,26 @@ class Regular(Mesh):
 
 
 class Circular(Regular):
-    def __init__(self, resolution, height, **kwargs):
+    def __init__(self, resolution=16, height=1, **kwargs):
+        self.resolution = resolution
+        self.height = height
         super().__init__(**kwargs)
 
-    def approx_circle(self, resolution):
+    def approx_circle(self, height=0):
         vertices = lalib.Matrix(1, 3)
-        angle_inc = (2 * math.pi) / resolution
+        angle_inc = (2 * math.pi) / self.resolution
 
-        for x in range(resolution):
-            vertices = vertices.vcon(lalib.InputVector([math.cos(angle_inc * x), math.sin(angle_inc * x), 0]).transpose())
+        for x in range(self.resolution):
+            vertices = vertices.vcon(lalib.InputVector([math.cos(angle_inc * x), math.sin(angle_inc * x), height]).transpose())
 
         return vertices
 
 
 class Polygon(Mesh):
     # ensure 2D, ensure closed
-    pass
+    def __init__(self):
+        for v in self.vertices:
+            assert v.vector[2] == 0
 
 
 class Plane(Regular, Polygon):
@@ -229,16 +243,32 @@ class Icosahedron(PlatonicSolid):
 
 
 class Cylinder(Circular, Polyhedron):
-    pass
+    def get_vertices(self):
+        top_half = super().approx_circle(self.height / 2)
+        return super().approx_circle(-self.height / 2).vcon(top_half)
+
+    def get_edges(self, vertices):
+        edges = super().get_edges(vertices)
+        for x in range(vertices.height):
+            for y in range(vertices.height):
+                if vertices.get_row(x).add(lalib.InputVector([0, 0, self.height])) == vertices.get_row(y):
+                    edges = edges.vcon(lalib.InputVector([x, y]))
+        return edges
 
 
 class Cone(Circular, Polyhedron):
     def get_vertices(self):
-        self.center - (self.height) / 2
-        super().approx_circle(self.resolution)
+        top = lalib.InputVector([0, 0, self.height / 2]).transpose()
+        return top.vcon(super().approx_circle(-self.height / 2))
+
+    def get_edges(self, vertices):
+        edges = super().get_edges(vertices)
+        for x in range(vertices.height - 1):
+            edges = edges.vcon(lalib.InputVector([0, x + 1]))
+        return edges
 
 
-class Sphere(Regular, Polyhedron):
+class Sphere(Circular, Polyhedron):
     pass
 
 
@@ -247,8 +277,8 @@ class Empty(Entity):
 
 
 class Camera(Entity):
-    def __init__(self, screen_dims=[900, 600], fov=60, pos=[0, 10, 0], key='1', **kwargs):
-        super().__init__(pos=pos, key=key, **kwargs)
+    def __init__(self, screen_dims=[900, 600], fov=60, pos=[0, 5, 0], rot=[0, 180, 0], key='1', **kwargs):
+        super().__init__(pos=pos, rot=rot, key=key, **kwargs)
         self.screen_dims = screen_dims
         self.screen = pg.display.set_mode(screen_dims)
         self.font = pg.font.Font(None, 15)
@@ -299,7 +329,7 @@ class Camera(Entity):
 
     def render_vertex_labels(self, entity, projected_coords):
         for n in range(entity.vertices.height):
-            text = self.font.render(str(entity.vertices.matrix[n]), True, colors.BROWN)
+            text = self.font.render(str(list(entity.vertices.get_row(n).round_matrix(2).vector)), True, colors.BROWN)
             self.screen.blit(text, (projected_coords[n][0] - 20, projected_coords[n][1] + 10))
 
     def loop(self):
@@ -316,7 +346,7 @@ def main():
 
     camera = Camera()
 
-    y = Dodecahedron()
+    y = Cylinder(key='2', resolution=10)
     y.selected = True
 
     camera.loop()

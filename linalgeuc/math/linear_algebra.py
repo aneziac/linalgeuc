@@ -454,7 +454,7 @@ class Matrix:
     rand = random_matrix
 
     def round_matrix(self, decimal_places=0):
-        result = Matrix(self.height, self.width)
+        result = create_array(self.height, self.width)
 
         for x in range(self.height):
             for y in range(self.width):
