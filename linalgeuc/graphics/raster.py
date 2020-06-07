@@ -11,10 +11,19 @@ import linalgeuc.math.linear_algebra as lalib
 class Entity:
     instances = []
     tf_keys = "wxadqe"
+    fov_keys = "op"
 
-    def __init__(self, pos, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
+    def __init__(self, pos=[0, 0, 0], rot=[0, 0, 0], scl=[1, 1, 1], key=None):
         Entity.instances.append(self)
-        self.ipos = lalib.InputVector(pos)
+
+        if not isinstance(pos, lalib.Matrix):
+            self.ipos = lalib.InputVector(pos)
+        else:
+            self.ipos = pos
+
+        if isinstance(self, Mesh):
+            self.vertices += lalib.InputVector(pos).stack(self.vertices.height, False)
+
         self.irot = lalib.InputVector(rot)
         self.iscl = lalib.InputVector(scl)
         self.key = key
@@ -26,7 +35,10 @@ class Entity:
         return point + (self.pos - self.ipos)
 
     def rotate_point(self, point, reverse=False):
-        return point.rotate_3d(self.rot)
+        if reverse:
+            return point.rotate_3d(-self.rot)
+        else:
+            return point.rotate_3d(self.rot)
 
     def scale_point(self, point):
         for x in range(self.scl.height):
@@ -38,13 +50,19 @@ class Entity:
 
     def controls(self, rot_speed, pos_speed, scl_speed):
         keys = pg.key.get_pressed()
+
         if self.selected:
+            if isinstance(self, Camera):
+                for x in range(len(Entity.fov_keys)):
+                    if keys[eval("pg.K_" + Entity.fov_keys[x])]:
+                        self.fov += math.radians((x * 2) - 1)
+
             for tf in {"rot": "r", "pos": "t", "scl": "s"}.items():
                 if keys[eval("pg.K_" + tf[1])]:
                     self.selected_tf = tf[0]
 
             if self.selected_tf is not None:
-                for action in range(6):
+                for action in range(len(Entity.tf_keys)):
                     if keys[eval("pg.K_" + Entity.tf_keys[action])]:
                         op = "self." + self.selected_tf + ".change_item("
                         amt = ("-" if action % 2 == 1 else "") + self.selected_tf + "_speed, " + str(action // 2) + ")"
@@ -53,7 +71,7 @@ class Entity:
             if keys[pg.K_i]:
                 self.reset()
 
-        if keys[eval("pg.K_" + self.key)]:
+        if self.key is not None and keys[eval("pg.K_" + self.key)]:
             Entity.deselect_all()
             self.selected = True
         if keys[pg.K_ESCAPE] or pg.QUIT in [event.type for event in pg.event.get()]:
@@ -79,11 +97,11 @@ class Entity:
 
 
 class Mesh(Entity):
-    def __init__(self, pos, vertices, edges, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
-        super().__init__(pos, key, rot, scl)
+    def __init__(self, vertices, edges, color=colors.BLACK, **kwargs):
         self.vertices = vertices
         self.edges = edges
         self.color = color
+        super().__init__(**kwargs)
 
     def transform(self):
         tvertices = lalib.Matrix(1, 3)
@@ -93,14 +111,20 @@ class Mesh(Entity):
         return tvertices
 
 
+class Line(Mesh):
+    def __init__(self, start=[-1, 0, 0], end=[1, 0, 0], **kwargs):
+        start, end = lalib.InputVector(start), lalib.InputVector(end)
+        vertices = start.transpose().vcon(end.transpose())
+        super().__init__(vertices, lalib.InputMatrix([[0, 1]]), pos=start.midpoint(end), **kwargs)
+
+
 class Regular(Mesh):
-    def __init__(self, center, radius, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1], resolution=20):
+    def __init__(self, radius=1, **kwargs):
         self.radius = radius
-        self.resolution = resolution
         vertices = self.get_vertices()
-        vertices += lalib.InputVector(center).stack(vertices.height, False)
+        #vertices += lalib.InputVector(center).stack(vertices.height, False)
         edges = self.get_edges(vertices)
-        super().__init__(center, vertices, edges, color, key, rot, scl)
+        super().__init__(vertices, edges, **kwargs)
 
     def signs(self, values):
         def recurse(n, val, cur=None, prev=[]):
@@ -135,7 +159,22 @@ class Regular(Mesh):
         return edges
 
 
+class Circular(Regular):
+    def __init__(self, resolution, height, **kwargs):
+        super().__init__(**kwargs)
+
+    def approx_circle(self, resolution):
+        vertices = lalib.Matrix(1, 3)
+        angle_inc = (2 * math.pi) / resolution
+
+        for x in range(resolution):
+            vertices = vertices.vcon(lalib.InputVector([math.cos(angle_inc * x), math.sin(angle_inc * x), 0]).transpose())
+
+        return vertices
+
+
 class Polygon(Mesh):
+    # ensure 2D, ensure closed
     pass
 
 
@@ -144,26 +183,21 @@ class Plane(Regular, Polygon):
         return super().signs([self.radius] * 2).hcon(lalib.Matrix.zeros(4, 1))
 
 
-class Circle(Regular, Polygon):
+class Circle(Circular, Polygon):
     def get_vertices(self):
-        vertices = lalib.Matrix(1, 3)
-        angle_inc = 2 * math.pi / self.resolution
-
-        for x in range(self.resolution):
-            vertices = vertices.vcon(lalib.InputVector([math.cos(angle_inc * x), math.sin(angle_inc * x), 0]).transpose())
-
-        return vertices
+        return super().approx_circle(self.resolution)
 
 
 class Polyhedron(Mesh):
     # F + V - E = 2
+    # ensure not 2D, ensure closed
     pass
 
 
 class PlatonicSolid(Regular, Polyhedron):
-    def __init__(self, center, radius, color, key=None, rot=[0, 0, 0], scl=[1, 1, 1]):
+    def __init__(self, **kwargs):
         self.golden_ratio = (1 + (5 ** 0.5)) / 2
-        super().__init__(center, radius, color, key, rot, scl)
+        super().__init__(**kwargs)
 
 
 class Tetrahedron(PlatonicSolid):
@@ -194,15 +228,32 @@ class Icosahedron(PlatonicSolid):
         return super().signs([0, self.radius, self.golden_ratio * self.radius])
 
 
+class Cylinder(Circular, Polyhedron):
+    pass
+
+
+class Cone(Circular, Polyhedron):
+    def get_vertices(self):
+        self.center - (self.height) / 2
+        super().approx_circle(self.resolution)
+
+
+class Sphere(Regular, Polyhedron):
+    pass
+
+
+class Empty(Entity):
+    pass
+
+
 class Camera(Entity):
-    def __init__(self, screen_dims, fov, pos, key=None, rot=[0, 0, 0]):
-        super().__init__(pos, key, rot)
+    def __init__(self, screen_dims=[900, 600], fov=60, pos=[0, 10, 0], key='1', **kwargs):
+        super().__init__(pos=pos, key=key, **kwargs)
         self.screen_dims = screen_dims
         self.screen = pg.display.set_mode(screen_dims)
         self.font = pg.font.Font(None, 15)
-        pg.display.set_caption("raster v.0.1.0")
+        pg.display.set_caption("raster v.0.1.1")
         self.fov = math.radians(fov)
-        self.plane_dist = ((screen_dims[0] / 2) / math.tan(fov / 2))
         self.label_vertices = False
         self.show_edges = True
 
@@ -213,7 +264,7 @@ class Camera(Entity):
             return [x, self.screen_dims[1] - y]
 
     def project(self, coord):
-        dcoord = self.rotate_point(self.pos - coord)
+        dcoord = self.rotate_point(self.pos - coord, True)
 
         def projection(dcoord, dim, screen_dim):
             if dcoord.vector[1] > 0:
@@ -224,6 +275,8 @@ class Camera(Entity):
         return lalib.InputVector(self.q1_transform(projection(dcoord, 0, 0), projection(dcoord, 2, 1)))
 
     def render_scene(self):
+        self.plane_dist = ((self.screen_dims[0] / 2) / math.tan(self.fov / 2))
+
         for entity in Entity.instances:
             entity.controls(2, 0.01, 0.01)
 
@@ -250,23 +303,23 @@ class Camera(Entity):
             self.screen.blit(text, (projected_coords[n][0] - 20, projected_coords[n][1] + 10))
 
     def loop(self):
-        self.screen.fill(colors.WHITE)
-        self.render_scene()
+        while True:
+            self.screen.fill(colors.WHITE)
+            self.render_scene()
 
-        pg.display.update()
+            pg.display.update()
 
 
 def main():
     pg.init()
     pg.font.init()
 
-    camera = Camera([900, 600], 55, [0, 5, 0], '1')
+    camera = Camera()
 
-    y = Circle([0, 0, 0], 1, colors.BLACK, '2')
+    y = Dodecahedron()
     y.selected = True
 
-    while True:
-        camera.loop()
+    camera.loop()
 
 
 if __name__ == '__main__':

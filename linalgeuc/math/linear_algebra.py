@@ -55,6 +55,8 @@ class Matrix:
             self.vector[row] = item
         self.matrix[row][col] = item
 
+    __setitem__ = set_item
+
     def change_item(self, delta, row, col=0):
         if isinstance(self, Vector):
             self.vector[row] += delta
@@ -66,6 +68,8 @@ class Matrix:
 
     def get_item(self, row, col):
         return self.matrix[row][col]
+
+    __getitem__ = get_item
 
     def get_column_as_list(self, x):
         return [row[x] for row in self.matrix]
@@ -225,6 +229,11 @@ class Matrix:
             result.push([(self.matrix[x][y] * scl) for y in range(self.width)])
         return result
 
+    def negate(self):
+        return self.scalar(-1)
+
+    __neg__ = negate
+
     @property
     def inverse(self):
         self.ensure_square()
@@ -315,6 +324,8 @@ class Matrix:
                 result *= inverse
 
         return result
+
+    __pow__ = raise_to
 
     def kronecker_product(self, other_matrix):
         result = Matrix(self.height * other_matrix.height, self.width * other_matrix.width)
@@ -421,6 +432,8 @@ class Matrix:
                 if self.matrix[x][y] != other_matrix.matrix[x][y]:
                     return False
         return True
+
+    __eq__ = is_equal_to
 
     @property
     def sum_values(self):

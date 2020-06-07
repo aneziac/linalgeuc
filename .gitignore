@@ -1,9 +1,7 @@
 __pycache__/
 *.pyc
 .DS_Store
-test.py
-graphing.py
-polygon.py
 venv/
 linalgeuc.egg-info/
 .coverage
+htmlcov
