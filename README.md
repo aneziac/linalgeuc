@@ -1,6 +1,6 @@
 # linalgeuc
 
-Linalgeuc is currently a 3D engine for Platonic Solids.
+Linalgeuc is currently a 3D engine for various shapes like cubes, cylinders, and planes.
 However, it is planned to also be a geometry editor and graphing calculator in Euclidean space.
 This includes graphing vectors in both 2D and 3D space and animating transformations.
 
@@ -12,16 +12,16 @@ This includes graphing vectors in both 2D and 3D space and animating transformat
 
 # Usage
 
-Clone ([or download](https://github.com/robertgamer4/linalgeuc/archive/master.zip)), install dependencies, and run like the following:
+Clone ([or download](https://github.com/aneziac/linalgeuc/archive/master.zip)), install dependencies, and run like the following:
 
-``$ git clone https://github.com/robertgamer4/linalgeuc.git``
+``$ git clone https://github.com/aneziac/linalgeuc.git``
 
 ``$ cd linalgeuc``
 
 ``$ pip install -e .``
 
-``$ python3 linalgeuc/graphics/raster.py``
+``$ python3 -m linalgeuc`` or ``$ python3 linalgeuc/graphics/raster.py``
 
 # Credits
 
-Credit to @SomeLoserWhoCantPickOriginalUsernames for originally beginning the linear algebra library.
+Credit to [@SomeLoserWhoCantPickOriginalUsernames](https://github.com/SomeLoserThatCantPickOriginalUsernames) for originally beginning the linear algebra library.
