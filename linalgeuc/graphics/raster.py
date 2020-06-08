@@ -118,14 +118,14 @@ class Mesh(Entity):
         tvertices = lalib.Matrix(1, 3)
         for x in range(self.vertices.height):
             tvertex = super().transform_point(self.vertices.get_row(x))
-            tvertices = tvertices.vcon(tvertex.transpose())
+            tvertices = tvertices.vcon(tvertex.tp())
         return tvertices
 
 
 class Line(Mesh):
     def __init__(self, start=[-1, 0, 0], end=[1, 0, 0], **kwargs):
         start, end = lalib.InputVector(start), lalib.InputVector(end)
-        vertices = start.transpose().vcon(end.transpose())
+        vertices = start.tp().vcon(end.tp())
         super().__init__(vertices, lalib.InputMatrix([[0, 1]]), pos=start.midpoint(end), **kwargs)
 
 
@@ -180,7 +180,7 @@ class Circular(Regular):
         angle_inc = (2 * math.pi) / self.resolution
 
         for x in range(self.resolution):
-            vertices = vertices.vcon(lalib.InputVector([math.cos(angle_inc * x), math.sin(angle_inc * x), height]).transpose())
+            vertices = vertices.vcon(lalib.InputVector([math.cos(angle_inc * x), math.sin(angle_inc * x), height]).tp())
 
         return vertices
 
@@ -258,7 +258,7 @@ class Cylinder(Circular, Polyhedron):
 
 class Cone(Circular, Polyhedron):
     def get_vertices(self):
-        top = lalib.InputVector([0, 0, self.height / 2]).transpose()
+        top = lalib.InputVector([0, 0, self.height / 2]).tp()
         return top.vcon(super().approx_circle(-self.height / 2))
 
     def get_edges(self, vertices):
@@ -282,9 +282,15 @@ class Camera(Entity):
         self.screen_dims = screen_dims
         self.screen = pg.display.set_mode(screen_dims)
         self.font = pg.font.Font(None, 15)
-        pg.display.set_caption("raster v.0.1.1")
         self.fov = math.radians(fov)
+        self.clock = pg.time.Clock()
+
+        self.title = "rasterfx"
+        self.version = "v.0.2.0"
+        pg.display.set_caption(self.title + " " + self.version)
+
         self.label_vertices = False
+        self.show_diagnostics = True
         self.show_edges = True
 
     def q1_transform(self, x, y):
@@ -314,13 +320,18 @@ class Camera(Entity):
                 projected_coords = lalib.Matrix(1, 2)
 
                 for coord in entity.transform().matrix:
-                    projected_coords = projected_coords.vcon(self.project(lalib.InputVector(coord)).transpose())
+                    projected_coords = projected_coords.vcon(self.project(lalib.InputVector(coord)).tp())
 
                 if self.show_edges:
                     self.render_edges(entity, projected_coords.matrix)
 
                 if self.label_vertices:
                     self.render_vertex_labels(entity, projected_coords.matrix)
+
+        if self.show_diagnostics:
+            self.render_diagnostics()
+
+        self.clock.tick()
 
     def render_edges(self, entity, proj_coords):
         for edge in entity.edges.matrix:
@@ -329,8 +340,35 @@ class Camera(Entity):
 
     def render_vertex_labels(self, entity, projected_coords):
         for n in range(entity.vertices.height):
-            text = self.font.render(str(list(entity.vertices.get_row(n).round_matrix(2).vector)), True, colors.BROWN)
-            self.screen.blit(text, (projected_coords[n][0] - 20, projected_coords[n][1] + 10))
+            self.text(entity.vertices.get_row(n).round_matrix(2), (projected_coords[n][0] - 20, projected_coords[n][1] + 10), colors.BROWN, False)
+
+    def render_diagnostics(self):
+        self.text(round(self.clock.get_fps()), [5, self.screen_dims[1] - 5], after=" FPS")
+        self.text(self.pos, [5, self.screen_dims[1] - 15], after=" POS")
+        self.text(self.rot, [5, self.screen_dims[1] - 25], after=" ROT")
+        self.text(len(Entity.instances), [5, self.screen_dims[1] - 35], after=" ENTS")
+
+        self.text(self.title, [self.screen_dims[0] - 45, self.screen_dims[1] - 5])
+        self.text(self.version, [self.screen_dims[0] - 45, self.screen_dims[1] - 15])
+        self.text("x".join([str(x) for x in self.screen_dims]), [self.screen_dims[0] - 45, self.screen_dims[1] - 25])
+
+        for entity in Entity.instances:
+            if entity.selected:
+                self.text(entity.__class__.__name__ + " (" + entity.key + ")", [0, self.screen_dims[1] - 5], center=True)
+                if not isinstance(entity, Camera):
+                    self.text(entity.pos, [0, self.screen_dims[1] - 15], center=True, after=" POS")
+                    self.text(entity.rot, [0, self.screen_dims[1] - 25], center=True, after=" ROT")
+                    self.text(entity.scl, [0, self.screen_dims[1] - 35], center=True, after=" SCL")
+
+    def text(self, text, loc, color=colors.BLACK, transform=True, after="", center=False):
+        if isinstance(text, lalib.Matrix):
+            text = str(text.round_matrix(2).make_list())
+        if center:
+            loc[0] = (self.screen_dims[0] / 2) - (self.font.size(text)[0] / 2)
+        if transform:
+            self.screen.blit(self.font.render(str(text) + after, True, color), self.q1_transform(loc[0], loc[1]))
+        else:
+            self.screen.blit(self.font.render(str(text) + after, True, color), loc)
 
     def loop(self):
         while True:
@@ -346,7 +384,7 @@ def main():
 
     camera = Camera()
 
-    y = Cylinder(key='2', resolution=10)
+    y = Cylinder(key='2')
     y.selected = True
 
     camera.loop()

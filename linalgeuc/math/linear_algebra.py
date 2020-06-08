@@ -85,6 +85,12 @@ class Matrix:
     def get_row(self, y):
         return InputVector(self.get_row_as_list(y))
 
+    def make_list(self):
+        if isinstance(self, Vector):
+            return self.vector
+        else:
+            return self.matrix
+
     def ensure_equal_heights(self, other_matrix, dim="heights"):
         if self.height != other_matrix.height:
             raise ValueError("Corresponding matrix " + dim + " must be equal (" + str(self.height) + " =/= " + str(other_matrix.height) + ")")
@@ -150,14 +156,18 @@ class Matrix:
         return result
 
     @staticmethod
-    def ones(n, m):
+    def ones(n, m=None):
+        if m is None:
+            m = n
         result = create_array(n, m)
         for x in range(n):
             result.push([1 for y in range(m)])
         return result
 
     @staticmethod
-    def zeros(n, m):
+    def zeros(n, m=None):
+        if m is None:
+            m = n
         result = create_array(n, m)
         for x in range(n):
             result.push([0 for y in range(m)])
@@ -168,6 +178,8 @@ class Matrix:
         for x in range(self.width):
             result.push([self.matrix[y][x] for y in range(self.height)])
         return result
+
+    tp = transpose
 
     def add(self, other_matrix):
         self.ensure_equal_dims(other_matrix)
