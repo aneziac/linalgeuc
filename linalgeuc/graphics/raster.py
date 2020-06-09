@@ -49,15 +49,21 @@ class Entity:
     def transform_point(self, point):
         return self.translate_point(self.scale_point(self.rotate_point(point)))
 
-    def controls(self, rot_speed, pos_speed, scl_speed):
+    def controls(self, rot_speed=2, pos_speed=0.01, scl_speed=0.01):
         keys = pg.key.get_pressed()
-        events = [event.type for event in pg.event.get()]
+        events = [event for event in pg.event.get()]
+
+        if isinstance(self, Camera) and self.ptz:
+            self.pantiltzoom(keys, events)
 
         if self.selected:
+            if keys[pg.K_i]:
+                self.reset()
+
             if isinstance(self, Camera):
                 for x in range(len(Entity.fov_keys)):
                     if keys[eval("pg.K_" + Entity.fov_keys[x])]:
-                        self.fov += math.radians((x * 2) - 1)
+                        self.fov += ((x * 2) - 1) * 0.01
 
             for tf in {"rot": "r", "pos": "t", "scl": "s"}.items():
                 if keys[eval("pg.K_" + tf[1])]:
@@ -75,8 +81,6 @@ class Entity:
                         amt = ("-" if action % 2 == 1 else "") + self.selected_tf + "_speed, " + str(action // 2) + ")"
                         eval(op + amt)
 
-            if keys[pg.K_i]:
-                self.reset()
             if keys[pg.K_h]:
                 while pg.key.get_pressed()[pg.K_h]:
                     pg.event.get()
@@ -85,12 +89,16 @@ class Entity:
         if self.key is not None and keys[eval("pg.K_" + self.key)]:
             Entity.deselect_all()
             self.selected = True
-        if keys[pg.K_ESCAPE] or pg.QUIT in events:
+        if keys[pg.K_ESCAPE] or pg.QUIT in [x.type for x in events]:
             import sys
             pg.quit()
             sys.exit()
 
     def reset(self):
+        if isinstance(self, Camera) and self.ptz:
+            self.theta = 0
+            self.phi = 0
+            self.rad = self.ipos.distance(lalib.InputVector([0, 0, 0]))
         self.pos = lalib.InputVector(self.ipos.vector)
         self.rot = lalib.InputVector(self.irot.vector)
         self.scl = lalib.InputVector(self.iscl.vector)
@@ -277,8 +285,7 @@ class Empty(Entity):
 
 
 class Camera(Entity):
-    def __init__(self, screen_dims=[900, 600], fov=60, pos=[0, 5, 0], rot=[0, 180, 0], key='1', **kwargs):
-        super().__init__(pos=pos, rot=rot, key=key, **kwargs)
+    def __init__(self, screen_dims=[900, 600], fov=60, pos=[0, 5, 0], rot=[0, 0, 0], key='1', **kwargs):
         self.screen_dims = screen_dims
         self.screen = pg.display.set_mode(screen_dims)
         self.font = pg.font.Font(None, 15)
@@ -286,12 +293,15 @@ class Camera(Entity):
         self.clock = pg.time.Clock()
 
         self.title = "rasterfx"
-        self.version = "v.0.2.0"
+        self.version = "v.0.2.1"
         pg.display.set_caption(self.title + " " + self.version)
 
         self.label_vertices = False
         self.show_diagnostics = True
         self.show_edges = True
+        self.ptz = True
+
+        super().__init__(pos=pos, rot=rot, key=key, **kwargs)
 
     def q1_transform(self, x, y):
         if x is None or y is None:
@@ -311,10 +321,10 @@ class Camera(Entity):
         return lalib.InputVector(self.q1_transform(projection(dcoord, 0, 0), projection(dcoord, 2, 1)))
 
     def render_scene(self):
-        self.plane_dist = ((self.screen_dims[0] / 2) / math.tan(self.fov / 2))
+        self.plane_dist = ((self.screen_dims[0] / 2) / math.tan(-self.fov / 2))
 
         for entity in Entity.instances:
-            entity.controls(2, 0.01, 0.01)
+            entity.controls()
 
             if isinstance(entity, Mesh) and entity.show:
                 projected_coords = lalib.Matrix(1, 2)
@@ -344,9 +354,10 @@ class Camera(Entity):
 
     def render_diagnostics(self):
         self.text(round(self.clock.get_fps()), [5, self.screen_dims[1] - 5], after=" FPS")
-        self.text(self.pos, [5, self.screen_dims[1] - 15], after=" POS")
-        self.text(self.rot, [5, self.screen_dims[1] - 25], after=" ROT")
-        self.text(len(Entity.instances), [5, self.screen_dims[1] - 35], after=" ENTS")
+        self.text(round(math.degrees(self.fov)), [5, self.screen_dims[1] - 15], after=" FOV")
+        self.text(self.pos, [5, self.screen_dims[1] - 25], after=" POS")
+        self.text(self.rot, [5, self.screen_dims[1] - 35], after=" ROT")
+        self.text(len(Entity.instances), [5, self.screen_dims[1] - 45], after=" ENTS")
 
         self.text(self.title, [self.screen_dims[0] - 45, self.screen_dims[1] - 5])
         self.text(self.version, [self.screen_dims[0] - 45, self.screen_dims[1] - 15])
@@ -370,6 +381,32 @@ class Camera(Entity):
         else:
             self.screen.blit(self.font.render(str(text) + after, True, color), loc)
 
+    def convang(self, i):
+        mpos = pg.mouse.get_pos()
+        return (mpos[i] - (self.screen_dims[i] / 2)) / 1000
+
+    def pantiltzoom(self, keys, events):
+        buttons = pg.mouse.get_pressed()
+
+        # zoom
+        for x in events:
+            if x.type == pg.MOUSEBUTTONDOWN:
+                if x.button == 4:
+                    self.rad -= 0.1
+                if x.button == 5:
+                    self.rad += 0.1
+
+        # tilt / orbit
+        if buttons[1]:
+            self.theta -= self.convang(0)
+            self.phi += self.convang(1)
+
+        self.pos = lalib.InputVector([math.cos(self.phi) * math.sin(self.theta), math.cos(self.phi) * math.cos(self.theta), math.sin(self.phi)]).scalar(self.rad)
+        self.rot = lalib.InputVector([math.degrees(self.phi), 0, math.degrees(-self.theta)])
+
+        pg.mouse.set_visible(False)
+        pg.mouse.set_pos([self.screen_dims[0] / 2, self.screen_dims[1] / 2])
+
     def loop(self):
         while True:
             self.screen.fill(colors.WHITE)
@@ -384,7 +421,7 @@ def main():
 
     camera = Camera()
 
-    y = Cylinder(key='2')
+    y = Cone(key='2')
     y.selected = True
 
     camera.loop()

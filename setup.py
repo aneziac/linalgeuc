@@ -6,10 +6,10 @@ with open('LICENSE') as f:
 
 setup(
     name="linalgeuc",
-    version="0.1.2",
+    version="0.2.1",
     description="Geometry editor and graphing calculator in Euclidean space",
-    author="robertgamer4",
-    url="https://github.com/robertgamer4/linalgeuc",
+    author="aneziac",
+    url="https://github.com/aneziac/linalgeuc",
     license=license,
     packages=find_packages(),
     install_requires=[
