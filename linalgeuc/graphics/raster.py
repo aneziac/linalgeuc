@@ -178,7 +178,7 @@ class Regular(Mesh):
 
 
 class Circular(Regular):
-    def __init__(self, resolution=16, height=1, **kwargs):
+    def __init__(self, resolution=16, height=2, **kwargs):
         self.resolution = resolution
         self.height = height
         super().__init__(**kwargs)
@@ -193,30 +193,21 @@ class Circular(Regular):
         return vertices
 
 
-class Polygon(Mesh):
-    # ensure 2D, ensure closed
-    def __init__(self):
-        for v in self.vertices:
-            assert v.vector[2] == 0
+# POLYGONS
 
-
-class Plane(Regular, Polygon):
+class Plane(Regular):
     def get_vertices(self):
         return super().signs([self.radius] * 2).hcon(lalib.Matrix.zeros(4, 1))
 
 
-class Circle(Circular, Polygon):
+class Circle(Circular):
     def get_vertices(self):
-        return super().approx_circle(self.resolution)
+        return super().approx_circle()
 
 
-class Polyhedron(Mesh):
-    # F + V - E = 2
-    # ensure not 2D, ensure closed
-    pass
+# POLYHEDRA
 
-
-class PlatonicSolid(Regular, Polyhedron):
+class PlatonicSolid(Regular):
     def __init__(self, **kwargs):
         self.golden_ratio = (1 + (5 ** 0.5)) / 2
         super().__init__(**kwargs)
@@ -250,7 +241,7 @@ class Icosahedron(PlatonicSolid):
         return super().signs([0, self.radius, self.golden_ratio * self.radius])
 
 
-class Cylinder(Circular, Polyhedron):
+class Cylinder(Circular):
     def get_vertices(self):
         top_half = super().approx_circle(self.height / 2)
         return super().approx_circle(-self.height / 2).vcon(top_half)
@@ -264,7 +255,7 @@ class Cylinder(Circular, Polyhedron):
         return edges
 
 
-class Cone(Circular, Polyhedron):
+class Cone(Circular):
     def get_vertices(self):
         top = lalib.InputVector([0, 0, self.height / 2]).tp()
         return top.vcon(super().approx_circle(-self.height / 2))
@@ -276,9 +267,11 @@ class Cone(Circular, Polyhedron):
         return edges
 
 
-class Sphere(Circular, Polyhedron):
+class Sphere(Circular):
     pass
 
+
+# OTHER ENTITIES
 
 class Empty(Entity):
     pass
@@ -398,11 +391,11 @@ class Camera(Entity):
 
         # tilt / orbit
         if buttons[1]:
-            self.theta -= self.convang(0)
-            self.phi += self.convang(1)
+            self.phi -= self.convang(0)
+            self.theta += self.convang(1)
 
-        self.pos = lalib.InputVector([math.cos(self.phi) * math.sin(self.theta), math.cos(self.phi) * math.cos(self.theta), math.sin(self.phi)]).scalar(self.rad)
-        self.rot = lalib.InputVector([math.degrees(self.phi), 0, math.degrees(-self.theta)])
+        self.pos = lalib.InputVector([self.rad, self.phi, self.theta]).sphtorect(True)
+        self.rot = lalib.InputVector([math.degrees(self.theta), 0, math.degrees(-self.phi)])
 
         pg.mouse.set_visible(False)
         pg.mouse.set_pos([self.screen_dims[0] / 2, self.screen_dims[1] / 2])
@@ -421,7 +414,7 @@ def main():
 
     camera = Camera()
 
-    y = Cone(key='2')
+    y = Cylinder(key='2')
     y.selected = True
 
     camera.loop()

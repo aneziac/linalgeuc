@@ -537,6 +537,12 @@ class Vector(Matrix):
             norm_vec.push(x / self.magnitude())
         return norm_vec
 
+    @staticmethod
+    def unit_vector(theta, degrees=False):
+        if degrees:
+            theta = math.radians(theta)
+        return InputVector([math.cos(theta), math.sin(theta)])
+
     def dot_product(self, other_vector):
         other_vector.ensure_vector()
         total = 0
@@ -587,6 +593,10 @@ class Vector(Matrix):
     def diagonal(self):
         return Matrix.identity(self.height).hadamard_product(self.outer_product(Matrix.ones(self.height, 1)))
 
+    def ensure_ndims(self, n):
+        if self.height != n:
+            raise ValueError("Must input a " + str(n) + "D vector")
+
     @staticmethod
     def get_basis(dim, n):
         result = Vector(dim)
@@ -598,8 +608,7 @@ class Vector(Matrix):
         return result
 
     def rotate_2d(self, theta, degrees=True):
-        if self.height != 2:
-            raise ValueError("Must input a 2D vector")
+        self.ensure_ndims(2)
         return Matrix.rotation(theta, degrees) * self
 
     def rotate_3d(self, rotation_vector, degrees=True):
@@ -635,6 +644,63 @@ class Vector(Matrix):
         other_vector.ensure_vector()
         return self + (other_vector - self).scalar(0.5)
 
+    def polar(self, degrees=False):
+        self.ensure_ndims(2)
+        x, y = self.vector
+        theta = math.atan(y / x)
+        if degrees:
+            theta = math.degrees(theta)
+        return InputVector([self.magnitude(), theta])
+
+    def poltorect(self, degrees=False):
+        self.ensure_ndims(2)
+        r, theta = self.vector
+        if degrees:
+            theta = math.radians(theta)
+        return InputVector([math.cos(theta), math.sin(theta)]).scalar(r)
+
+    def spherical(self, degrees=False):
+        self.ensure_ndims(3)
+        x, y, z = self.vector
+        phi, theta = math.atan(y / x), math.atan((((x ** 2) + (y ** 2)) ** 0.5) / z)
+        if degrees:
+            phi, theta = math.degrees(phi), math.degrees(theta)
+        return InputVector([self.magnitude(), phi, theta])
+
+    def sphtorect(self, complements=False, degrees=False):
+        self.ensure_ndims(3)
+        r, phi, theta = self.vector
+        if degrees:
+            phi = math.radians(phi)
+            theta = math.radians(theta)
+        if complements:
+            phi = (math.pi / 2) - phi
+            theta = (math.pi / 2) - theta
+        return InputVector([math.sin(theta) * math.cos(phi), math.sin(theta) * math.sin(phi), math.cos(theta)]).scalar(r)
+
+    def cylindrical(self, degrees=False):
+        x, y, z = self.vector
+        self.ensure_ndims(3)
+        phi = math.atan(y / x)
+        if degrees:
+            phi = math.degrees(phi)
+        return InputVector([((x ** 2) + (y ** 2)) ** 0.5], phi, z)
+
+    def cyltorect(self, degrees=False):
+        self.ensure_ndims(3)
+        rho, phi, z = self.vector
+        if degrees:
+            phi = math.radians(phi)
+        return InputVector([rho * math.cos(phi), rho * math.sin(phi), z])
+
+    def complex_multiply(self, other_vector):
+        other_vector.ensure_vector()
+        self.ensure_ndims(2)
+        other_vector.ensure_ndims(2)
+        theta1 = math.atan(self.vector[1] / self.vector[0])
+        theta2 = math.atan(other_vector[1] / other_vector[0])
+        return Vector.unit_vector(theta1 + theta2).scalar(self.magnitude() * other_vector.magnitude())
+
 
 class InputVector(Vector):
     def __init__(self, array):
@@ -666,7 +732,7 @@ class Iteration:
 def create_array(height, width):
     if width == 1:
         return Vector(height)
-    elif width >= 1:
+    elif width > 1:
         return Matrix(height, width)
 
 
