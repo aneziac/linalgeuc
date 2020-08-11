@@ -20,7 +20,7 @@ Clone ([or download](https://github.com/aneziac/linalgeuc/archive/master.zip)), 
 
 ``$ pip3 install -e .``
 
-``$ python3 -m linalgeuc`` or ``$ python3 linalgeuc/graphics/raster.py``
+``$ python3 -m linalgeuc``
 
 # Controls
 

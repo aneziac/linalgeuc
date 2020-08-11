@@ -576,13 +576,10 @@ class Vector(Matrix):
     def cross_product(self, other_vector):
         other_vector.ensure_vector()
         if self.num_items() == 3 and other_vector.num_items() == 3:
-            def cross(first, second):
-                cross_product.push((self.vector[first] * other_vector.vector[second]) - (self.vector[second] * other_vector.vector[first]))
-
             cross_product = Vector(3)
-            cross(1, 2)
-            cross(2, 0)
-            cross(0, 1)
+            for x in range(3):
+                cross_product.push((self.vector[x] * other_vector.vector[(x + 1) % 3]) - (self.vector[(x + 1) % 3] * other_vector.vector[x]))
+
             return cross_product
 
         else:
@@ -640,9 +637,12 @@ class Vector(Matrix):
         other_vector.ensure_vector()
         return (other_vector - self).magnitude(norm)
 
-    def midpoint(self, other_vector):
+    def getpoint(self, other_vector, proportion):
         other_vector.ensure_vector()
-        return self + (other_vector - self).scalar(0.5)
+        return self + (other_vector - self).scalar(proportion)
+
+    def midpoint(self, other_vector):
+        return self.getpoint(other_vector, 0.5)
 
     def polar(self, degrees=False):
         self.ensure_ndims(2)
