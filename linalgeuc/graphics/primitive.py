@@ -1,4 +1,5 @@
 import linalgeuc.math.linear_algebra as lalib
+from linalgeuc.graphics.mesh import Mesh, Regular, Circular
 import pygame as pg
 
 # CONSTANTS

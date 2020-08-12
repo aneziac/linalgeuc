@@ -91,6 +91,14 @@ class Matrix:
         else:
             return self.matrix
 
+    @property
+    def vectors(self):
+        result = []        
+
+        for row in self.matrix:
+            result.append(InputVector(row))
+        return result
+
     def ensure_equal_heights(self, other_matrix, dim="heights"):
         if self.height != other_matrix.height:
             raise ValueError("Corresponding matrix " + dim + " must be equal (" + str(self.height) + " =/= " + str(other_matrix.height) + ")")
@@ -525,7 +533,7 @@ class Vector(Matrix):
     def get_vector_item(self, n):
         return self.vector(n)
 
-    def magnitude(self, norm=2):
+    def magnitude(self, norm=2): # add property decorator?
         if norm == "inf":
             return max([abs(x) for x in self.vector])
         else:

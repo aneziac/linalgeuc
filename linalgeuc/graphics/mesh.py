@@ -1,4 +1,5 @@
 import linalgeuc.math.linear_algebra as lalib
+from linalgeuc.graphics.entity import Entity
 import pygame as pg
 import math
 from collections import deque
@@ -13,6 +14,7 @@ class Mesh(Entity):
         self.vertex_amt = self.vertices.size[0]
         self.edges_amt = self.edges.size[0]
         super().__init__(**kwargs)
+        self.vertices += self.ipos.stack(self.vertices.height, False)
 
     def transform(self):
         tvertices = lalib.Matrix(1, 3)
