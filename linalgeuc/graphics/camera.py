@@ -23,7 +23,7 @@ class Camera(Entity):
         self.show_edges = True
         self.zoom_speed = 0.1
         self.active = True #False
-        self.mode = "orthographic"
+        self.mode = "perspective"
 
         super().__init__(pos=pos, key=key, **kwargs)
 
@@ -46,9 +46,9 @@ class Camera(Entity):
             return lalib.InputVector([None] * 2)
 
         def project_coord(dim, screen_dim):
-            if self.mode == "perspective":
+            if "perspective" in self.mode:
                 loc = (self.plane_dist * dcoord.vector[dim]) / dcoord.y
-            elif self.mode == "orthographic":
+            elif "orthographic" in self.mode or "isometric" in self.mode:
                 loc = dcoord.vector[dim] * round(self.plane_dist / self.pos.magnitude())
 
             return math.floor(loc + (screen_dim // 2))
@@ -88,6 +88,7 @@ class Camera(Entity):
         self.text(self.pos, [5, self.HEIGHT - 25], after=" POS")
         self.text(self.rot, [5, self.HEIGHT - 35], after=" ROT")
         self.text(len(Entity.entities.sprites()), [5, self.HEIGHT - 45], after=" ENTS")
+        self.text(self.mode, [5, self.HEIGHT - 55])
 
         self.text(self.title, [self.WIDTH - 45, self.HEIGHT - 5])
         self.text(self.version, [self.WIDTH - 45, self.HEIGHT - 15])
@@ -147,6 +148,33 @@ class Viewpoint(Camera):
         super().__init__(**kwargs)
 
     def update(self, keys, events):
+        if keys[K_COMMA]:
+            self.theta = 0
+            self.phi = math.pi / 2
+            self.mode = "front orthographic"
+        if keys[K_PERIOD]:
+            self.theta = 0
+            self.phi = 0
+            self.mode = "side orthographic"
+        if keys[K_SLASH]:
+            self.theta = -math.pi / 2
+            self.phi = 0
+            self.mode = "top orthographic"
+        if keys[K_m]:
+            self.theta = -math.pi / 4
+            self.phi = math.pi / 4
+            self.mode = "isometric"
+        if self.mode != "perspective" and self.theta * self.phi != 0 and self.theta + self.phi != 0:
+            self.mode = "orthographic"
+
+        if keys[K_b]:
+            if self.mode == "perspective":
+                self.mode = "orthographic"
+            elif self.mode == "orthographic":
+                self.mode = "perspective"
+            while pg.key.get_pressed()[K_b]:
+                pg.event.get()
+
         self.pantiltzoom(keys, events)
         super().update(keys, events)
 

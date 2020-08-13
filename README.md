@@ -1,8 +1,6 @@
 # linalgeuc
 
-Linalgeuc is currently a 3D engine for various shapes including cubes, cylinders, and planes.
-However, it is planned to also be a geometry editor and graphing calculator in Euclidean space.
-This includes graphing vectors in both 2D and 3D space and animating transformations.
+Linalgeuc is a 3D engine for various shapes including cubes, cylinders, and planes that was built using a custom linear algebra library.
 
 # Dependencies
 
@@ -22,12 +20,16 @@ Clone ([or download](https://github.com/aneziac/linalgeuc/archive/master.zip)), 
 
 ``$ python3 -m linalgeuc``
 
+You can also run it windowed with the w flag:
+
+``$ python3 -m linalguec -w``
+
 # Controls
 
 Press 'r' to rotate, 's' to scale, or 't' to translate. 
 Then, the axis you affect is controlled by pressing some key in 'qweadx'. 
 Revert to initial settings with 'i'. 
-Select different entities with the number keys--note that '1' always controls the camera. 
+Select different entities with the number keys. 
 Orbit the camera by holding the middle mouse button and zoom with the scroll wheel.
 
 Press escape to close.
