@@ -22,6 +22,8 @@ class Matrix:
             try:
                 if isinstance(self, Vector):
                     self.vector[self.cursor] = item
+                    if self.height <= 3:
+                        self.x, self.y, self.z = self.vector + [None] * (3 - self.height)
                 self.matrix[self.cursor // self.width][self.cursor % self.width] = item
                 self.cursor += 1
 

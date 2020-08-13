@@ -5,7 +5,7 @@ from pygame.locals import *
 
 class Entity(pg.sprite.Sprite):
     entities = pg.sprite.Group()
-    tf_keys = "wxadqe"
+    tf_keys = "wxdaeq"
     scl_keys = "op"
 
     def __init__(self, pos=[0, 0, 0], rot=[0, 0, 0], scl=[1, 1, 1], key=None, name=None):
@@ -27,7 +27,7 @@ class Entity(pg.sprite.Sprite):
         self.selected = False
         self.show = True
 
-    def update(self, keys, rot_speed=2, pos_speed=0.01, scl_speed=0.01):
+    def update(self, keys, events, rot_speed=2, pos_speed=0.01, scl_speed=0.01):
 
         if self.selected:
             if keys[pg.K_i]:
@@ -36,7 +36,7 @@ class Entity(pg.sprite.Sprite):
             for tf in {"rot": "r", "pos": "t", "scl": "s"}.items():
                 if keys[eval("K_" + tf[1])]:
                     self.selected_tf = tf[0]
-
+                     
             if self.selected_tf is not None:
                 if self.selected_tf == "scl":
                     for x in range(len(Entity.scl_keys)):
@@ -77,17 +77,17 @@ class Entity(pg.sprite.Sprite):
         return self.translate_point(self.scale_point(self.rotate_point(point)))
 
     def reset(self):
-        self.pos = self.ipos
-        self.rot = self.irot
-        self.scl = self.iscl
+        self.pos = lalib.InputVector(self.ipos.vector)
+        self.rot = lalib.InputVector(self.irot.vector)
+        self.scl = lalib.InputVector(self.iscl.vector)
         self.selected_tf = None
 
     @classmethod
     def select_all(cls):
-        for entity in cls.instances:
+        for entity in cls.entities.sprites():
             entity.selected = True
 
     @classmethod
     def deselect_all(cls):
-        for entity in cls.instances:
+        for entity in cls.entities.sprites():
             entity.selected = False

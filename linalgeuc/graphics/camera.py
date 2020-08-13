@@ -10,30 +10,30 @@ import sys
 class Camera(Entity):
     fov_keys = "op"
 
-    def __init__(self, dims=[900, 600], fov=60, pos=[0, 5, 0], key='1', **kwargs):
+    def __init__(self, dims=[900, 600], fov=60, pos=[0, 0, 5], key='1', **kwargs):
         self.WIDTH, self.HEIGHT = dims
         self.SCREEN_DIMS = dims
 
         self.font = pg.font.Font(None, 15)
         self.fov = math.radians(fov)
-        self.plane_dist = (self.WIDTH / 2) / math.tan(-self.fov / 2)
+        self.plane_dist = round((self.WIDTH / 2) / math.tan(self.fov / 2))
 
         self.label_vertices = False
         self.show_diagnostics = True
         self.show_edges = True
         self.zoom_speed = 0.1
         self.active = True #False
-        self.perspective = True
+        self.mode = "orthographic"
 
         super().__init__(pos=pos, key=key, **kwargs)
 
-    def update(self, keys):
+    def update(self, keys, events):
         if self.selected:
             for x in range(len(Camera.fov_keys)):
                 if keys[eval("K_" + Camera.fov_keys[x])]:
                     self.fov += ((x * 2) - 1) * 0.01
-                    self.plane_dist = (self.WIDTH / 2) / math.tan(-self.fov / 2)
-        super().update(keys)
+                    self.plane_dist = round((self.WIDTH / 2) / math.tan(self.fov / 2))
+        super().update(keys, events)
 
     def q1_transform(self, x, y):
         return [x, self.HEIGHT - y]
@@ -41,14 +41,17 @@ class Camera(Entity):
     def project(self, coord):
         dcoord = self.rotate_point(self.pos - coord, True)
 
-        if dcoord.vector[1] < 0: # cancel if vertex is behind the camera
-            return [None]
+        # cancel if vertex is behind the camera
+        if dcoord.y < 0:
+            return lalib.InputVector([None] * 2)
 
         def project_coord(dim, screen_dim):
-            if self.perspective: # perspective projection using similar triangles
-                return math.floor(((self.plane_dist * dcoord.vector[dim]) / dcoord.vector[1]) + (screen_dim / 2))
-            else: # defaults to orthogonal projection
-                pass
+            if self.mode == "perspective":
+                loc = (self.plane_dist * dcoord.vector[dim]) / dcoord.y
+            elif self.mode == "orthographic":
+                loc = dcoord.vector[dim] * round(self.plane_dist / self.pos.magnitude())
+
+            return math.floor(loc + (screen_dim // 2))
 
         return lalib.InputVector(self.q1_transform(project_coord(0, self.WIDTH), project_coord(2, self.HEIGHT)))
 
@@ -143,9 +146,9 @@ class Viewpoint(Camera):
 
         super().__init__(**kwargs)
 
-    def update(self, keys):
-        self.pantiltzoom(keys)
-        super().update(keys)
+    def update(self, keys, events):
+        self.pantiltzoom(keys, events)
+        super().update(keys, events)
 
     def refresh(self):
         self.clock.tick()
@@ -162,7 +165,7 @@ class Viewpoint(Camera):
         super().render_scene()
         self.refresh()
 
-    def pantiltzoom(self, keys):
+    def pantiltzoom(self, keys, events):
         buttons = pg.mouse.get_pressed()
 
         def mouse_to_angle(i):
@@ -170,7 +173,7 @@ class Viewpoint(Camera):
             return (mpos[i] - (self.SCREEN_DIMS[i] / 2)) / 1000
 
         # zoom
-        for x in pg.event.get():
+        for x in events:
             if x.type == pg.MOUSEBUTTONDOWN:
                 if x.button == 4:
                     self.orbit_radius -= self.zoom_speed
@@ -179,8 +182,8 @@ class Viewpoint(Camera):
 
         # tilt / orbit
         if buttons[1]:
-            self.phi -= mouse_to_angle(0)
-            self.theta += mouse_to_angle(1)
+            self.phi += mouse_to_angle(0)
+            self.theta -= mouse_to_angle(1)
 
         self.pos = lalib.InputVector([self.orbit_radius, self.phi, self.theta]).sphtorect(True)
         self.rot = lalib.InputVector([math.degrees(self.theta), 0, math.degrees(-self.phi)])
