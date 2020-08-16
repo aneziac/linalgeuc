@@ -30,9 +30,26 @@ Press 'r' to rotate, 's' to scale, or 't' to translate.
 Then, the axis you affect is controlled by pressing some key in 'qweadx'. 
 Revert to initial settings with 'i'. 
 Select different entities with the number keys. 
-Orbit the camera by holding the middle mouse button and zoom with the scroll wheel.
+Orbit the viewpoint by holding the middle mouse button, and zoom with the scroll wheel. 
+Pan by holding left shift and left click.
 
 Press escape to close.
+
+# Supported Shapes
+
+- Lines
+- Planes
+- Regular Polygons / Circles
+- Tetrahedrons
+- Cubes
+- Octahedrons
+- Dodecahedrons
+- Icosahedrons
+- Prisms / Cylinders
+- Pyramids / Cones
+- Spheres
+
+[//]: # (Points, Ellipses, and Toruses. Add faces)
 
 # Credits
 
