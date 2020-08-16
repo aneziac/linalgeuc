@@ -4,9 +4,9 @@ from pygame.locals import *
 
 running = True
 
-view = camera.Viewpoint([900, 600], "rastervfx", "0.3.0")
+view = camera.Viewpoint([900, 600], "rastervfx", "0.4.0")
 
-obj = primitive.Cube(key='2')
+obj = primitive.Sphere(key='2')
 obj.selected = True
 
 while running:

@@ -6,8 +6,8 @@ with open('LICENSE') as f:
 
 setup(
     name="linalgeuc",
-    version="0.2.1",
-    description="Geometry editor and graphing calculator in Euclidean space",
+    version="0.4.0",
+    description="Rasterization engine for 3D shapes",
     author="aneziac",
     url="https://github.com/aneziac/linalgeuc",
     license=license,

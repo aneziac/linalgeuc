@@ -159,11 +159,11 @@ class Viewpoint(Camera):
         # allow switching between different projections
         if keys[K_COMMA]:
             self.theta = 0
-            self.phi = math.pi / 2
+            self.phi = -math.pi / 2
             self.mode = "front orthographic"
         if keys[K_PERIOD]:
             self.theta = 0
-            self.phi = 0
+            self.phi = -math.pi
             self.mode = "side orthographic"
         if keys[K_SLASH]:
             self.theta = -math.pi / 2

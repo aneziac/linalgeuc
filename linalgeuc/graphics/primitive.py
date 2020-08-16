@@ -1,6 +1,7 @@
 import linalgeuc.math.linear_algebra as lalib
 from linalgeuc.graphics.mesh import Mesh, Regular, Circular
 import pygame as pg
+import math
 
 # CONSTANTS
 
@@ -95,41 +96,46 @@ class Cone(Circular):
 
 
 class Sphere(Circular):
-    def __init__(self, vresolution=5, hresolution=8, **kwargs):
+    def __init__(self, vresolution=5, hresolution=6, **kwargs):
         assert vresolution >= 3
         assert hresolution >= 3
         self.vresolution = vresolution
+        self.ring_count = self.vresolution - 2
         self.hresolution = hresolution
         super().__init__(hresolution, **kwargs)
+        self.ring_spacing = 2 * self.radius / self.vresolution
 
     def get_vertices(self):
-        bottom = lalib.InputVector([0, 0, -self.radius])
-        top = lalib.InputVector([0, 0, self.radius])
-        for x in range(self.vresolution - 2):
-            h = self.radius * ((x / (self.vresolution - 2) * 2) - 1)
-            r = math.sin(math.pi * (x + 1) / self.vresolution)
-            top = top.vcon(super().approx_circle(h, r).tp())
+        top = lalib.InputVector([0, 0, self.radius]).tp()
+        bottom = lalib.InputVector([0, 0, -self.radius]).tp()
+        for x in range(self.ring_count):
+            angle = (math.pi / (self.vresolution - 1)) * (x + 1)
+            height = self.radius * math.cos(angle)
+            radius = self.radius * math.sin(angle)
+            top = top.vcon(super().approx_circle(height, radius))
         return top.vcon(bottom)
 
-    def get_edges(self):
-        edges = lalib.Vector(2)
-
-        # south pole
-        for x in range(self.hresolution):
-            edges = edges.vcon(lalib.InputVector([0, x + 1]))
-
-        # longitude
-        vnum = self.hresolution * (self.vresolution - 2)
-        for x in range(vnum - 2):
-            edges = edges.vcon(lalib.InputVector([x + 1, x + 1 + self.hresolution]))
-
-        # latitude
-        for v in range(self.vresolution - 2):
-            for h in range(self.hresolution - 1):
-                edges = edges.vcon(lalib.InputVector([(v * self.hresolution) + h + 1, h + 2]))
+    def get_edges(self, vertices):
+        edges = lalib.Matrix(1, 2)
+        vnum = (self.hresolution * self.ring_count) + 2
 
         # north pole
         for x in range(self.hresolution):
-            edges = edges.vcon(lalib.InputVector([vnum - 2 - x, vnum - 1]))
+           edges = edges.vcon(lalib.InputVector([0, x + 1]).tp())
+
+        # longitude
+        for x in range(self.hresolution * (self.ring_count - 1)):
+           edges = edges.vcon(lalib.InputVector([x + 1, x + 1 + self.hresolution]))
+
+        # latitude
+        for r in range(self.ring_count): # 3
+            layer = (r * self.hresolution) + 1
+            for h in range(self.hresolution - 1): # 6
+                edges = edges.vcon(lalib.InputVector([layer + h, layer + h + 1]))
+            edges = edges.vcon(lalib.InputVector([layer, (r + 1) * self.hresolution]))
+
+        # south pole
+        for x in range(self.hresolution):
+           edges = edges.vcon(lalib.InputVector([vnum - 2 - x, vnum - 1]))
 
         return edges
