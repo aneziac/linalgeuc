@@ -19,7 +19,7 @@ class Line(Mesh):
     def __init__(self, start=[-1, 0, 0], end=[1, 0, 0], **kwargs):
         start, end = lalib.InputVector(start), lalib.InputVector(end)
         vertices = start.tp().vcon(end.tp())
-        super().__init__(vertices, lalib.InputMatrix([[0, 1]]), pos=start.midpoint(end), **kwargs)
+        super().__init__(vertices, lalib.InputMatrix([[0, 1]]), pos=start.midpoint(end), add_pos=False, **kwargs)
 
 
 # 2D

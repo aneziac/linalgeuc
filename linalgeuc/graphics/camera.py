@@ -1,6 +1,7 @@
 import linalgeuc.math.linear_algebra as lalib
 from linalgeuc.graphics.entity import Entity
 from linalgeuc.graphics.mesh import Mesh
+from linalgeuc.graphics.primitive import Line
 import pygame as pg
 from pygame.locals import *
 import math
@@ -10,7 +11,7 @@ import sys
 class Camera(Entity):
     fov_keys = "op"
 
-    def __init__(self, dims=[900, 600], fov=60, pos=[0, 0, 5], key='1', **kwargs):
+    def __init__(self, dims=[900, 600], fov=60, pos=[0, 5, 0], key='1', **kwargs):
         self.WIDTH, self.HEIGHT = dims
         self.SCREEN_DIMS = dims
 
@@ -20,10 +21,16 @@ class Camera(Entity):
 
         self.label_vertices = False
         self.show_diagnostics = True
+        self.show_axes = True
         self.show_edges = True
         self.zoom_speed = 0.1
         self.active = True #False
         self.mode = "perspective"
+
+        if self.show_axes:
+            Line([0, 0, 0], [1, 0, 0], color=pg.Color("red"))
+            Line([0, 0, 0], [0, 1, 0], color=pg.Color("green"))
+            Line([0, 0, 0], [0, 0, 1], color=pg.Color("blue"))
 
         super().__init__(pos=pos, key=key, **kwargs)
 
@@ -47,13 +54,13 @@ class Camera(Entity):
 
         def project_coord(dim, screen_dim):
             if "perspective" in self.mode:
-                loc = (self.plane_dist * dcoord.vector[dim]) / dcoord.y
+                loc = (self.plane_dist * dcoord.vector[dim]) / (dcoord.y + 10e-5)
             elif "orthographic" in self.mode or "isometric" in self.mode:
                 loc = dcoord.vector[dim] * round(self.plane_dist / self.pos.magnitude())
 
             return math.floor(loc + (screen_dim // 2))
 
-        return lalib.InputVector(self.q1_transform(project_coord(0, self.WIDTH), project_coord(2, self.HEIGHT)))
+        return lalib.InputVector([project_coord(0, self.WIDTH), project_coord(2, self.HEIGHT)])
 
     def render_scene(self):
         for entity in Entity.entities.sprites():
@@ -148,6 +155,8 @@ class Viewpoint(Camera):
         super().__init__(**kwargs)
 
     def update(self, keys, events):
+
+        # allow switching between different projections
         if keys[K_COMMA]:
             self.theta = 0
             self.phi = math.pi / 2
@@ -162,8 +171,8 @@ class Viewpoint(Camera):
             self.mode = "top orthographic"
         if keys[K_m]:
             self.theta = -math.pi / 4
-            self.phi = math.pi / 4
-            self.mode = "isometric"
+            self.phi = -math.pi / 4
+            self.mode = "isometric" # FIX LINE BELOW
         if self.mode != "perspective" and self.theta * self.phi != 0 and self.theta + self.phi != 0:
             self.mode = "orthographic"
 
@@ -184,9 +193,10 @@ class Viewpoint(Camera):
         self.canvas.fill(self.fill_color)
 
     def reset(self):
-        self.theta = 0
-        self.phi = 0
+        self.theta = math.pi / 6
+        self.phi = math.pi / 3
         self.orbit_radius = self.ipos.magnitude()
+        self.pan_offset = lalib.InputVector([0, 0, 0])
         super().reset()
 
     def render_scene(self):
@@ -195,10 +205,17 @@ class Viewpoint(Camera):
 
     def pantiltzoom(self, keys, events):
         buttons = pg.mouse.get_pressed()
+        mpos = pg.mouse.get_pos()
 
-        def mouse_to_angle(i):
-            mpos = pg.mouse.get_pos()
-            return (mpos[i] - (self.SCREEN_DIMS[i] / 2)) / 1000
+        def mouse_to_value(i, divisor=1000):
+            return (mpos[i] - (self.SCREEN_DIMS[i] / 2)) / divisor
+
+        # pan - somewhat buggy
+        if keys[K_LSHIFT] and buttons[0]:
+            x_dir = lalib.InputVector([1, 0, 0]).rotate_3d(self.rot)
+            z_dir = lalib.InputVector([0, 0, 1]).rotate_3d(self.rot)
+
+            self.pan_offset += x_dir.scalar(mouse_to_value(0)) - z_dir.scalar(mouse_to_value(1))
 
         # zoom
         for x in events:
@@ -210,10 +227,10 @@ class Viewpoint(Camera):
 
         # tilt / orbit
         if buttons[1]:
-            self.phi += mouse_to_angle(0)
-            self.theta -= mouse_to_angle(1)
+            self.phi -= mouse_to_value(0)
+            self.theta -= mouse_to_value(1)
 
-        self.pos = lalib.InputVector([self.orbit_radius, self.phi, self.theta]).sphtorect(True)
+        self.pos = lalib.InputVector([self.orbit_radius, self.phi, self.theta]).sphtorect(True) + self.pan_offset
         self.rot = lalib.InputVector([math.degrees(self.theta), 0, math.degrees(-self.phi)])
 
         pg.mouse.set_pos([self.WIDTH // 2, self.HEIGHT // 2])

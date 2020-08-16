@@ -6,7 +6,7 @@ from collections import deque
 
 
 class Mesh(Entity):
-    def __init__(self, vertices, edges, color=pg.Color("black"), **kwargs):
+    def __init__(self, vertices, edges, color=pg.Color("black"), add_pos=True, **kwargs):
         self.vertices = vertices
         self.edges = edges
         self.color = color
@@ -14,7 +14,8 @@ class Mesh(Entity):
         self.vertex_amt = self.vertices.size[0]
         self.edges_amt = self.edges.size[0]
         super().__init__(**kwargs)
-        self.vertices += self.ipos.stack(self.vertices.height, False)
+        if add_pos:
+            self.vertices += self.ipos.stack(self.vertices.height, False)
 
     def transform(self):
         tvertices = lalib.Matrix(1, 3)
