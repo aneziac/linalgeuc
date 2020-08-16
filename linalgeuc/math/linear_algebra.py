@@ -543,8 +543,9 @@ class Vector(Matrix):
 
     def normalize(self):
         norm_vec = Vector(self.height)
+        magnitude = self.magnitude()
         for x in range(self.height):
-            norm_vec.push(x / self.magnitude())
+            norm_vec.push(self.vector[x] / magnitude)
         return norm_vec
 
     @staticmethod

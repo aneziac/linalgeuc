@@ -138,5 +138,15 @@ class TestMatrix(unittest.TestCase):
         self.assertTrue(t.raise_to(3).is_equal_to(lalib.InputMatrix([-29, 20], [-10, -39])))
 
 
+class TestVector(unittest.TestCase):
+    def test_magnitude(self):
+        v = lalib.InputVector([1, 6, 18])
+        self.assertEqual(v.magnitude(), 19)
+
+    def test_normalize(self):
+        v = lalib.InputVector([3, 4, 0])
+        self.assertTrue(v.normalize().is_equal_to(lalib.InputVector([0.6, 0.8, 0])))
+
+
 if __name__ == '__main__':
     unittest.main()
