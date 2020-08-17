@@ -24,7 +24,7 @@ class Camera(Entity):
         self.show_axes = True
         self.show_edges = True
         self.zoom_speed = 0.1
-        self.active = True #False
+        self.active = True  # False
         self.mode = "perspective"
 
         if self.show_axes:
@@ -87,7 +87,8 @@ class Camera(Entity):
 
     def render_vertex_labels(self, entity, projected_coords):
         for n in range(entity.vertices.height):
-            self.text(entity.vertices.get_row(n).round_matrix(2), (projected_coords[n][0] - 20, projected_coords[n][1] + 10), pg.Color("brown"), False)
+            coords = [projected_coords[n][0] - 20, projected_coords[n][1] + 10]
+            self.text(entity.vertices.get_row(n).round_matrix(2), coords, pg.Color("brown"), False)
 
     def render_diagnostics(self):
         self.text(round(self.clock.get_fps()), [5, self.HEIGHT - 5], after=" FPS")
@@ -172,7 +173,7 @@ class Viewpoint(Camera):
         if keys[K_m]:
             self.theta = -math.pi / 4
             self.phi = -math.pi / 4
-            self.mode = "isometric" # FIX LINE BELOW
+            self.mode = "isometric"
         if self.mode != "perspective" and self.theta * self.phi != 0 and self.theta + self.phi != 0:
             self.mode = "orthographic"
 

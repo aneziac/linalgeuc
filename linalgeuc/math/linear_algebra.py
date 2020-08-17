@@ -95,7 +95,7 @@ class Matrix:
 
     @property
     def vectors(self):
-        result = []        
+        result = []
 
         for row in self.matrix:
             result.append(InputVector(row))
@@ -103,7 +103,8 @@ class Matrix:
 
     def ensure_equal_heights(self, other_matrix, dim="heights"):
         if self.height != other_matrix.height:
-            raise ValueError("Corresponding matrix " + dim + " must be equal (" + str(self.height) + " =/= " + str(other_matrix.height) + ")")
+            heights = str(self.height) + " =/= " + str(other_matrix.height) + ")"
+            raise ValueError("Corresponding matrix " + dim + " must be equal (" + heights)
         return True
 
     def ensure_equal_widths(self, other_matrix):
@@ -535,7 +536,7 @@ class Vector(Matrix):
     def get_vector_item(self, n):
         return self.vector(n)
 
-    def magnitude(self, norm=2): # add property decorator?
+    def magnitude(self, norm=2):  # add property decorator?
         if norm == "inf":
             return max([abs(x) for x in self.vector])
         else:
@@ -589,7 +590,8 @@ class Vector(Matrix):
         if self.num_items() == 3 and other_vector.num_items() == 3:
             cross_product = Vector(3)
             for x in range(3):
-                cross_product.push((self.vector[x] * other_vector.vector[(x + 1) % 3]) - (self.vector[(x + 1) % 3] * other_vector.vector[x]))
+                n = (x + 1) % 3
+                cross_product.push((self.vector[x] * other_vector.vector[n]) - (self.vector[n] * other_vector.vector[x]))
 
             return cross_product
 

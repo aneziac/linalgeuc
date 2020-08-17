@@ -36,7 +36,7 @@ class Entity(pg.sprite.Sprite):
             for tf in {"rot": "r", "pos": "t", "scl": "s"}.items():
                 if keys[eval("K_" + tf[1])]:
                     self.selected_tf = tf[0]
-                     
+
             if self.selected_tf is not None:
                 if self.selected_tf == "scl":
                     for x in range(len(Entity.scl_keys)):

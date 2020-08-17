@@ -1,6 +1,5 @@
 import linalgeuc.math.linear_algebra as lalib
 from linalgeuc.graphics.mesh import Mesh, Regular, Circular
-import pygame as pg
 import math
 
 # CONSTANTS
@@ -121,21 +120,21 @@ class Sphere(Circular):
 
         # north pole
         for x in range(self.hresolution):
-           edges = edges.vcon(lalib.InputVector([0, x + 1]).tp())
+            edges = edges.vcon(lalib.InputVector([0, x + 1]).tp())
 
         # longitude
         for x in range(self.hresolution * (self.ring_count - 1)):
-           edges = edges.vcon(lalib.InputVector([x + 1, x + 1 + self.hresolution]))
+            edges = edges.vcon(lalib.InputVector([x + 1, x + 1 + self.hresolution]))
 
         # latitude
-        for r in range(self.ring_count): # 3
+        for r in range(self.ring_count):
             layer = (r * self.hresolution) + 1
-            for h in range(self.hresolution - 1): # 6
+            for h in range(self.hresolution - 1):
                 edges = edges.vcon(lalib.InputVector([layer + h, layer + h + 1]))
             edges = edges.vcon(lalib.InputVector([layer, (r + 1) * self.hresolution]))
 
         # south pole
         for x in range(self.hresolution):
-           edges = edges.vcon(lalib.InputVector([vnum - 2 - x, vnum - 1]))
+            edges = edges.vcon(lalib.InputVector([vnum - 2 - x, vnum - 1]))
 
         return edges

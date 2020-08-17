@@ -73,7 +73,7 @@ class Circular(Regular):
         self.height = height
         super().__init__(**kwargs)
 
-    def approx_circle(self, height=0, radius=1): # swap parameters
+    def approx_circle(self, height=0, radius=1):  # swap parameters
         vertices = lalib.Matrix(1, 3)
         angle_inc = (2 * math.pi) / self.resolution
 
