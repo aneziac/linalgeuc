@@ -109,7 +109,7 @@ class Sphere(Circular):
         bottom = lalib.InputVector([0, 0, -self.radius]).tp()
         for x in range(self.ring_count):
             angle = (math.pi / (self.vresolution - 1)) * (x + 1)
-            height = self.radius * math.cos(angle)
+            height = self.radius * math.cos(angle) * self.height
             radius = self.radius * math.sin(angle)
             top = top.vcon(super().approx_circle(height, radius))
         return top.vcon(bottom)
@@ -138,3 +138,39 @@ class Sphere(Circular):
             edges = edges.vcon(lalib.InputVector([vnum - 2 - x, vnum - 1]))
 
         return edges
+
+
+class Torus(Circular):
+    def __init__(self, minor_radius=0.5, major_radius=1, vresolution=5, hresolution=6, **kwargs):
+        assert major_radius > minor_radius > 0
+        self.minor_radius = minor_radius
+        self.major_radius = major_radius
+        assert vresolution >= 3
+        assert hresolution >= 3
+        self.vresolution = vresolution
+        self.ring_count = self.vresolution - 2
+        self.hresolution = hresolution
+
+    def get_vertices(self):
+        bottom = super().approx_circle(-self.height / 2, (self.minor_radius + self.major_radius) / 2)
+        for x in range(self.ring_count):
+            angle = (math.pi / (self.vresolution - 1)) * (x + 1)
+            height = self.major_radius * math.sin(angle) * self.height
+            bottom.vcon(super().approx_circle(height, self.minor_radius))
+            bottom.vcon(super().approx_circle(height, self.major_radius))
+
+        bottom.vcon(super().approx_circle(-self.height / 2, (self.minor_radius + self.major_radius) / 2))
+        return bottom
+
+    def get_edges(self):
+        # longitude
+        for x in range(self.hresolution * (self.ring_count - 1)):
+            edges = edges.vcon(lalib.InputVector([x + 1, x + 1 + self.hresolution]))
+
+        # latitude
+        for r in range(self.ring_count):
+            layer = (r * self.hresolution) + 1
+            for h in range(self.hresolution - 1):
+                edges = edges.vcon(lalib.InputVector([layer + h, layer + h + 1]))
+            edges = edges.vcon(lalib.InputVector([layer, (r + 1) * self.hresolution]))
+
