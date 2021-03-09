@@ -109,7 +109,7 @@ class Sphere(Circular):
         bottom = lalib.InputVector([0, 0, -self.radius]).tp()
         for x in range(self.ring_count):
             angle = (math.pi / (self.vresolution - 1)) * (x + 1)
-            height = self.radius * math.cos(angle) * self.height
+            height = self.radius * math.cos(angle)
             radius = self.radius * math.sin(angle)
             top = top.vcon(super().approx_circle(height, radius))
         return top.vcon(bottom)
@@ -140,7 +140,7 @@ class Sphere(Circular):
         return edges
 
 
-class Torus(Circular):
+class Torus(Circular):  # work in progress
     def __init__(self, minor_radius=0.5, major_radius=1, vresolution=5, hresolution=6, **kwargs):
         assert major_radius > minor_radius > 0
         self.minor_radius = minor_radius
@@ -173,4 +173,3 @@ class Torus(Circular):
             for h in range(self.hresolution - 1):
                 edges = edges.vcon(lalib.InputVector([layer + h, layer + h + 1]))
             edges = edges.vcon(lalib.InputVector([layer, (r + 1) * self.hresolution]))
-

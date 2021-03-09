@@ -2,7 +2,6 @@ __pycache__/
 *.pyc
 .DS_Store
 venv/
-linalgeuc.egg-info/
 .coverage
 htmlcov
 .vscode
